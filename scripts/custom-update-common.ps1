@@ -18,5 +18,16 @@ function Get-CustomNewerRelease {
 }
 
 function Get-CustomUpstreamRelease {
-    Invoke-RestMethod -Uri 'https://api.github.com/repos/openai/codex/releases/latest' -Headers @{ 'User-Agent' = 'codex-custom-update-check' } -TimeoutSec 4
+    $PreviousProtocol = [Net.ServicePointManager]::SecurityProtocol
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = $PreviousProtocol -bor [Net.SecurityProtocolType]::Tls12
+        $Response = Invoke-WebRequest -Uri 'https://github.com/openai/codex/releases/latest' -Method Head -UseBasicParsing -Headers @{ 'User-Agent' = 'codex-custom-update-check' } -TimeoutSec 4
+    } finally {
+        [Net.ServicePointManager]::SecurityProtocol = $PreviousProtocol
+    }
+    $ReleaseUri = $Response.BaseResponse.ResponseUri
+    if (-not $ReleaseUri) { $ReleaseUri = $Response.BaseResponse.RequestMessage.RequestUri }
+    $Match = [regex]::Match([string]$ReleaseUri.AbsolutePath, '^/openai/codex/releases/tag/(rust-v\d+\.\d+\.\d+)$')
+    if (-not $Match.Success) { throw 'Cannot determine the latest stable Codex release from the GitHub redirect.' }
+    [pscustomobject]@{ tag_name = $Match.Groups[1].Value; draft = $false; prerelease = $false }
 }

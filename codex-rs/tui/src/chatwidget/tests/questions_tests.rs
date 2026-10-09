@@ -1095,3 +1095,44 @@ async fn retried_question_answers_keep_separate_envelopes_and_order() {
         assert_eq!(retried, original);
     }
 }
+
+#[tokio::test]
+async fn question_mouse_delivers_answer_and_preserves_main_draft() {
+    use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+    let (mut chat, _events, mut ops) = make_chatwidget_manual(None).await;
+    chat.thread_id = Some(ThreadId::new());
+    chat.bottom_pane
+        .set_composer_text("main draft".into(), Vec::new(), Vec::new());
+    chat.add_async_questions(
+        "message",
+        &[question(
+            "Which way?",
+            Some(vec!["First".into(), "Second".into()]),
+        )],
+    );
+    chat.bottom_pane
+        .questions
+        .as_mut()
+        .unwrap()
+        .set_expanded(true);
+    let area = ratatui::layout::Rect::new(0, 0, 80, 24);
+    let mut buffer = ratatui::buffer::Buffer::empty(area);
+    crate::render::renderable::Renderable::render(&chat.bottom_pane, area, &mut buffer);
+    let row = (0..24)
+        .find(|&row| {
+            let text: String = (0..80)
+                .map(|column| buffer[(column, row)].symbol())
+                .collect();
+            text.contains("Second")
+        })
+        .unwrap();
+    assert!(chat.handle_view_mouse(MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: 3,
+        row,
+        modifiers: KeyModifiers::NONE
+    }));
+    assert_answer(ops.try_recv().unwrap(), "> Which way?\n\nSecond");
+    assert_eq!(chat.bottom_pane.composer_text(), "main draft");
+    assert_eq!(question_count(&chat), 0);
+}

@@ -11,11 +11,13 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::bottom_pane::popup_consts::standard_popup_hint_line;
 use crate::bottom_pane::scroll_state::ScrollState;
+use crate::bottom_pane::selection_popup_common::ColumnWidthConfig;
 use crate::bottom_pane::selection_popup_common::measure_rows_height;
 use crate::bottom_pane::selection_popup_common::menu_surface_inset;
 use crate::bottom_pane::selection_popup_common::menu_surface_padding_height;
 use crate::bottom_pane::selection_popup_common::render_menu_surface;
 use crate::bottom_pane::selection_popup_common::render_rows;
+use crate::bottom_pane::selection_popup_common::render_rows_with_col_width_mode;
 use crate::bottom_pane::selection_popup_common::wrap_styled_line;
 use crate::line_truncation::line_width;
 use crate::render::renderable::Renderable;
@@ -247,6 +249,7 @@ impl RequestUserInputOverlay {
     }
 
     pub(super) fn render_ui_at(&self, area: Rect, buf: &mut Buffer, now: Instant) {
+        self.option_mouse_regions.borrow_mut().clear();
         if area.width == 0 || area.height == 0 {
             return;
         }
@@ -298,7 +301,7 @@ impl RequestUserInputOverlay {
                 // Ensure the selected option is visible in the scroll window.
                 options_state
                     .ensure_visible(option_rows.len(), sections.options_area.height as usize);
-                render_rows_bottom_aligned(
+                *self.option_mouse_regions.borrow_mut() = render_rows_bottom_aligned(
                     sections.options_area,
                     buf,
                     &option_rows,
@@ -415,9 +418,9 @@ pub(in crate::bottom_pane) fn render_rows_bottom_aligned(
     state: &ScrollState,
     max_results: usize,
     empty_message: &str,
-) {
+) -> Vec<(Rect, usize)> {
     if area.width == 0 || area.height == 0 {
-        return;
+        return Vec::new();
     }
 
     let scratch_area = Rect::new(0, 0, area.width, area.height);
@@ -427,22 +430,37 @@ pub(in crate::bottom_pane) fn render_rows_bottom_aligned(
             scratch[(x, y)] = buf[(area.x + x, area.y + y)].clone();
         }
     }
-    let rendered_height = render_rows(
+    let rendered = render_rows_with_col_width_mode(
         scratch_area,
         &mut scratch,
         rows,
         state,
         max_results,
         empty_message,
+        ColumnWidthConfig::default(),
     );
-
-    let visible_height = rendered_height.min(area.height);
+    let visible_height = rendered.lines.min(area.height);
     let y_offset = area.height.saturating_sub(visible_height);
     for y in 0..visible_height {
         for x in 0..area.width {
             buf[(area.x + x, area.y + y_offset + y)] = scratch[(x, y)].clone();
         }
     }
+    rendered
+        .item_areas
+        .into_iter()
+        .map(|(rect, index)| {
+            (
+                Rect::new(
+                    area.x + rect.x,
+                    area.y + y_offset + rect.y,
+                    rect.width,
+                    rect.height,
+                ),
+                index,
+            )
+        })
+        .collect()
 }
 
 /// Truncate a styled line to `max_width`, preferring a word boundary, and append an ellipsis.

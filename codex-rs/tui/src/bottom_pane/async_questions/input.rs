@@ -101,14 +101,15 @@ impl AsyncQuestions {
             self.visible_options
                 .set((state.scroll_top, rows.len() - state.scroll_top));
         }
-        crate::bottom_pane::request_user_input::render::render_rows_bottom_aligned(
-            named_area,
-            buf,
-            &rows,
-            &state,
-            rows.len(),
-            "",
-        );
+        *self.option_mouse_regions.borrow_mut() =
+            crate::bottom_pane::request_user_input::render::render_rows_bottom_aligned(
+                named_area,
+                buf,
+                &rows,
+                &state,
+                rows.len(),
+                "",
+            );
         let margin = Rect::new(
             area.x,
             input.y,
@@ -124,6 +125,10 @@ impl AsyncQuestions {
         .style(crate::style::accent_style())
         .render(margin, buf);
         self.composer.render_inline_input(input, buf);
+        self.option_mouse_regions.borrow_mut().push((
+            Rect::new(area.x, input.y, area.width, input.height),
+            self.options().len(),
+        ));
     }
     pub(crate) fn set_keymap(&mut self, keymap: &RuntimeKeymap) {
         self.keymap = keymap.clone();
@@ -136,6 +141,42 @@ impl AsyncQuestions {
 }
 
 impl BottomPaneView for AsyncQuestions {
+    fn handle_mouse(&mut self, event: crossterm::event::MouseEvent) -> bool {
+        use crossterm::event::{MouseButton, MouseEventKind};
+        if !self.expanded || !event.modifiers.is_empty() || self.is_complete() {
+            return false;
+        }
+        if !matches!(
+            event.kind,
+            MouseEventKind::Down(MouseButton::Left) | MouseEventKind::Moved
+        ) {
+            return false;
+        }
+        let position = ratatui::layout::Position::new(event.column, event.row);
+        let selected = self
+            .option_mouse_regions
+            .borrow()
+            .iter()
+            .find(|(rect, _)| rect.contains(position))
+            .map(|(_, index)| *index);
+        let Some(index) = selected else {
+            return false;
+        };
+        let (first, count) = self.visible_options.get();
+        if index < self.options().len() && !(first..first + count).contains(&index) {
+            return true;
+        }
+        self.select_option(index);
+        if matches!(event.kind, MouseEventKind::Down(MouseButton::Left)) {
+            self.snooze_auto_resolution();
+            self.option_mouse_regions.borrow_mut().clear();
+            if !self.other_selected() {
+                self.go_next_or_submit();
+            }
+        }
+        true
+    }
+
     fn keymap_contexts(&self) -> crate::keymap::KeymapContextSet {
         if self.focus_is_notes() {
             self.composer.keymap_contexts().with(KeymapContext::Chat)

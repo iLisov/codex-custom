@@ -114,65 +114,68 @@ impl ChatWidget {
             if interrupting {
                 self.pause_active_goal_for_interrupt();
             }
-            let submission = self
-                .bottom_pane
-                .questions
-                .as_mut()
-                .and_then(|q| q.submission.take());
-            if let Some(submission) = submission {
-                let (text, queued) = match submission {
-                    QuestionSubmission::Submit(text) => (text, false),
-                    QuestionSubmission::Queue(text) => (text, true),
-                };
-                if self.blocks_direct_input {
-                    self.add_error_message(PARENT_OWNED_INPUT_MESSAGE.to_string());
-                    return true;
-                }
-                if self.has_misalignment_policy_violation() {
-                    return true;
-                }
-                let main = self.bottom_pane.composer_draft_snapshot();
-                let accepted = if queued
-                    || self.input_queue.submissions_paused()
-                    || self.is_plan_streaming_in_tui()
-                    || self.input_queue.user_turn_pending_start
-                        && !self.turn_lifecycle.agent_turn_running
-                    || self.only_user_shell_commands_running()
-                {
-                    self.queue_user_message_with_options_and_source(
-                        UserMessage::from(text),
-                        QueuedInputAction::Plain,
-                        Vec::new(),
-                        UserMessageSource::QuestionAnswer,
-                    )
-                } else {
-                    self.submit_user_message_with_history_and_shell_escape_policy(
-                        UserMessage::from(text),
-                        UserMessageHistoryRecord::UserMessageText,
-                        ShellEscapePolicy::Disallow,
-                        UserMessageSource::QuestionAnswer,
-                    )
-                    .0
-                };
-                if accepted {
-                    if let Some(questions) = &mut self.bottom_pane.questions {
-                        questions.accept_answer();
-                    }
-                } else if self.bottom_pane.composer_draft_snapshot() != main {
-                    let cursor = main.cursor;
-                    self.restore_composer_state(ThreadComposerState {
-                        text: main.text,
-                        text_elements: main.text_elements,
-                        local_images: main.local_images,
-                        remote_image_urls: main.remote_image_urls,
-                        mention_bindings: main.mention_bindings,
-                        pending_pastes: main.pending_pastes,
-                    });
-                    self.bottom_pane.set_composer_cursor(cursor);
-                }
-            }
+            self.deliver_question_submission();
         }
         self.request_redraw();
         true
+    }
+    pub(super) fn deliver_question_submission(&mut self) {
+        let submission = self
+            .bottom_pane
+            .questions
+            .as_mut()
+            .and_then(|q| q.submission.take());
+        if let Some(submission) = submission {
+            let (text, queued) = match submission {
+                QuestionSubmission::Submit(text) => (text, false),
+                QuestionSubmission::Queue(text) => (text, true),
+            };
+            if self.blocks_direct_input {
+                self.add_error_message(PARENT_OWNED_INPUT_MESSAGE.to_string());
+                return;
+            }
+            if self.has_misalignment_policy_violation() {
+                return;
+            }
+            let main = self.bottom_pane.composer_draft_snapshot();
+            let accepted = if queued
+                || self.input_queue.submissions_paused()
+                || self.is_plan_streaming_in_tui()
+                || self.input_queue.user_turn_pending_start
+                    && !self.turn_lifecycle.agent_turn_running
+                || self.only_user_shell_commands_running()
+            {
+                self.queue_user_message_with_options_and_source(
+                    UserMessage::from(text),
+                    QueuedInputAction::Plain,
+                    Vec::new(),
+                    UserMessageSource::QuestionAnswer,
+                )
+            } else {
+                self.submit_user_message_with_history_and_shell_escape_policy(
+                    UserMessage::from(text),
+                    UserMessageHistoryRecord::UserMessageText,
+                    ShellEscapePolicy::Disallow,
+                    UserMessageSource::QuestionAnswer,
+                )
+                .0
+            };
+            if accepted {
+                if let Some(questions) = &mut self.bottom_pane.questions {
+                    questions.accept_answer();
+                }
+            } else if self.bottom_pane.composer_draft_snapshot() != main {
+                let cursor = main.cursor;
+                self.restore_composer_state(ThreadComposerState {
+                    text: main.text,
+                    text_elements: main.text_elements,
+                    local_images: main.local_images,
+                    remote_image_urls: main.remote_image_urls,
+                    mention_bindings: main.mention_bindings,
+                    pending_pastes: main.pending_pastes,
+                });
+                self.bottom_pane.set_composer_cursor(cursor);
+            }
+        }
     }
 }

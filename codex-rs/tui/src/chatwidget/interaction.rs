@@ -28,7 +28,11 @@ impl ChatWidget {
     }
 
     pub(crate) fn handle_view_mouse(&mut self, event: crossterm::event::MouseEvent) -> bool {
-        self.bottom_pane.handle_view_mouse(event)
+        let handled = self.bottom_pane.handle_view_mouse(event);
+        if handled {
+            self.deliver_question_submission();
+        }
+        handled
     }
 
     pub(crate) fn handle_composer_mouse(&mut self, event: crossterm::event::MouseEvent) -> bool {

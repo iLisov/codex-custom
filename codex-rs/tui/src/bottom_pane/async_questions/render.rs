@@ -43,6 +43,7 @@ impl Renderable for AsyncQuestions {
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
         self.visible_options.set((0, 0));
+        self.option_mouse_regions.borrow_mut().clear();
         ratatui::widgets::Clear.render(area, buf);
         let content_area = render_menu_surface(area, buf);
         if content_area.is_empty() {
@@ -92,7 +93,7 @@ impl Renderable for AsyncQuestions {
                 .count();
             options_state.scroll_top = first;
             self.visible_options.set((first, visible));
-            render_rows_bottom_aligned(
+            *self.option_mouse_regions.borrow_mut() = render_rows_bottom_aligned(
                 sections.options_area,
                 buf,
                 &option_rows,

@@ -1,5 +1,6 @@
 //! Inline editing for asynchronous questions. Legacy request_user_input keeps its own overlay.
 //! Local submissions and committed desktop replies remove questions; arrival never steals focus.
+//! Mouse clicks accept fully painted named choices; Other retains its editable draft.
 //! Live turn completion recovers unsent typed drafts before removing pending questions.
 
 use crate::app_event_sender::AppEventSender;
@@ -72,6 +73,7 @@ pub(crate) struct AsyncQuestions {
     pub(crate) delivery_enabled: bool,
     pub(crate) submission: Option<QuestionSubmission>,
     visible_options: std::cell::Cell<(usize, usize)>,
+    option_mouse_regions: std::cell::RefCell<Vec<(ratatui::layout::Rect, usize)>>,
     keymap: RuntimeKeymap,
     // Ignore autorepeat from the number key that opened Other.
     other_selector: Option<KeyCode>,
@@ -107,6 +109,7 @@ impl AsyncQuestions {
             delivery_enabled: true,
             submission: None,
             visible_options: std::cell::Cell::new((0, 0)),
+            option_mouse_regions: Default::default(),
             keymap,
             other_selector: None,
             composer,

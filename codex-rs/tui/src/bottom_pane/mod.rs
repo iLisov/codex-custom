@@ -1855,6 +1855,15 @@ impl BottomPane {
     }
 
     pub(crate) fn handle_view_mouse(&mut self, event: crossterm::event::MouseEvent) -> bool {
+        if self.view_stack.is_empty()
+            && let Some(questions) = self.questions.as_mut().filter(|q| q.expanded)
+        {
+            let handled = questions.handle_mouse(event);
+            if handled {
+                self.request_redraw();
+            }
+            return handled;
+        }
         let Some(view) = self.view_stack.last_mut() else {
             return false;
         };

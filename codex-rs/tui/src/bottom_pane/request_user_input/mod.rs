@@ -3,6 +3,7 @@
 //! Core behaviors:
 //! - Each question can be answered by selecting one option and/or providing notes.
 //! - Notes are stored per question and appended as extra answers.
+//! - Mouse clicks select painted options and use the same acceptance path as Enter.
 //! - Typing while focused on options jumps into notes to keep freeform input fast.
 //! - The composer submit binding advances to the next question; the last question submits all answers.
 //! - Freeform-only questions submit an empty answer list when empty.
@@ -148,6 +149,7 @@ pub(crate) struct RequestUserInputOverlay {
     answers: Vec<AnswerState>,
     current_idx: usize,
     focus: Focus,
+    option_mouse_regions: std::cell::RefCell<Vec<(ratatui::layout::Rect, usize)>>,
     done: bool,
     pending_submission_draft: Option<ComposerDraft>,
     confirm_unanswered: Option<ScrollState>,
@@ -208,6 +210,7 @@ impl RequestUserInputOverlay {
             answers: Vec::new(),
             current_idx: 0,
             focus: Focus::Options,
+            option_mouse_regions: Default::default(),
             done: false,
             pending_submission_draft: None,
             confirm_unanswered: None,
@@ -1167,6 +1170,38 @@ impl RequestUserInputOverlay {
 }
 
 impl BottomPaneView for RequestUserInputOverlay {
+    fn handle_mouse(&mut self, event: crossterm::event::MouseEvent) -> bool {
+        use crossterm::event::{MouseButton, MouseEventKind};
+        if !event.modifiers.is_empty() || self.done || self.confirm_unanswered_active() {
+            return false;
+        }
+        if !matches!(
+            event.kind,
+            MouseEventKind::Down(MouseButton::Left) | MouseEventKind::Moved
+        ) {
+            return false;
+        }
+        let position = ratatui::layout::Position::new(event.column, event.row);
+        let selected = self
+            .option_mouse_regions
+            .borrow()
+            .iter()
+            .find(|(rect, _)| rect.contains(position))
+            .map(|(_, index)| *index);
+        let Some(index) = selected else {
+            return false;
+        };
+        if let Some(answer) = self.current_answer_mut() {
+            answer.options_state.selected_idx = Some(index);
+        }
+        self.focus = Focus::Options;
+        if matches!(event.kind, MouseEventKind::Down(MouseButton::Left)) {
+            self.option_mouse_regions.borrow_mut().clear();
+            self.handle_key_event(KeyEvent::from(KeyCode::Enter));
+        }
+        true
+    }
+
     fn keymap_contexts(&self) -> crate::keymap::KeymapContextSet {
         if self.confirm_unanswered_active() {
             return crate::keymap::KeymapContextSet::default();
@@ -1987,6 +2022,40 @@ mod tests {
             matches!(event, AppEvent::InsertHistoryCell(_)),
             "expected history cell event"
         );
+    }
+
+    #[test]
+    fn question_mouse_legacy_click_sends_the_selected_answer() {
+        use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+        let (tx, mut rx) = test_sender();
+        let mut overlay = RequestUserInputOverlay::new(
+            request_event("turn-1", vec![question_with_options("q1", "First")]),
+            tx,
+            true,
+            true,
+            true,
+        );
+        let area = ratatui::layout::Rect::new(0, 0, 80, 24);
+        let mut buffer = ratatui::buffer::Buffer::empty(area);
+        overlay.render(area, &mut buffer);
+        let region = overlay
+            .option_mouse_regions
+            .borrow()
+            .iter()
+            .find(|(_, index)| *index == 1)
+            .unwrap()
+            .0;
+        assert!(overlay.handle_mouse(MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: region.x,
+            row: region.y,
+            modifiers: KeyModifiers::NONE
+        }));
+        let event = rx.try_recv().unwrap();
+        let AppEvent::CodexOp(Op::UserInputAnswer { response, .. }) = event else {
+            panic!("answer delivery");
+        };
+        assert_eq!(response.answers["q1"].answers, vec!["Option 2".to_string()]);
     }
 
     #[test]

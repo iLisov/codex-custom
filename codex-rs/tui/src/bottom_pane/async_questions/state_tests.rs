@@ -603,3 +603,99 @@ fn oversized_question_ids_keep_questions_answerable_without_echoing_the_id() {
     };
     assert_eq!(reply, "> Question\n\nAnswer");
 }
+
+#[test]
+fn question_mouse_selects_visible_choice_without_submitting_on_hover() {
+    use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+    let mut editor = AsyncQuestions::new(
+        AppEventSender::new(tx),
+        true,
+        true,
+        true,
+        RuntimeKeymap::defaults(),
+    );
+    editor.append(
+        "message",
+        &[question(
+            "Choose",
+            Some(vec!["First".into(), "Second".into()]),
+        )],
+    );
+    editor.set_expanded(true);
+    render_editor(&editor, 80, 20);
+    let region = editor
+        .option_mouse_regions
+        .borrow()
+        .iter()
+        .find(|(_, index)| *index == 1)
+        .unwrap()
+        .0;
+    let mut event = MouseEvent {
+        kind: MouseEventKind::Moved,
+        column: region.x,
+        row: region.y,
+        modifiers: KeyModifiers::NONE,
+    };
+    assert!(editor.handle_mouse(event));
+    assert!(editor.submission.is_none());
+    render_editor(&editor, 80, 20);
+    event.kind = MouseEventKind::Down(MouseButton::Left);
+    event.modifiers = KeyModifiers::CONTROL;
+    assert!(!editor.handle_mouse(event));
+    event.modifiers = KeyModifiers::NONE;
+    assert!(editor.handle_mouse(event));
+    assert!(
+        matches!(&editor.submission,Some(QuestionSubmission::Submit(text)) if text.contains("Second"))
+    );
+}
+
+#[test]
+fn question_mouse_cannot_accept_clipped_or_disabled_delivery() {
+    use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+    let mut editor = AsyncQuestions::new(
+        AppEventSender::new(tx),
+        true,
+        true,
+        true,
+        RuntimeKeymap::defaults(),
+    );
+    editor.append(
+        "message",
+        &[question(
+            "Choose",
+            Some(vec!["Long ".repeat(40), "Second".into()]),
+        )],
+    );
+    editor.set_expanded(true);
+    render_editor(&editor, 30, 6);
+    let regions = editor.option_mouse_regions.borrow().clone();
+    for (region, index) in regions {
+        if index == 0 {
+            editor.handle_mouse(MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: region.x,
+                row: region.y,
+                modifiers: KeyModifiers::NONE,
+            });
+        }
+    }
+    assert!(editor.submission.is_none());
+    editor.delivery_enabled = false;
+    render_editor(&editor, 80, 40);
+    let region = editor
+        .option_mouse_regions
+        .borrow()
+        .iter()
+        .find(|(_, index)| *index == 1)
+        .unwrap()
+        .0;
+    editor.handle_mouse(MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: region.x,
+        row: region.y,
+        modifiers: KeyModifiers::NONE,
+    });
+    assert!(editor.submission.is_none());
+}

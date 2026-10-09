@@ -1,7 +1,8 @@
 param(
     [ValidateSet('All', 'Test', 'Build')]
     [string]$Mode = 'All',
-    [string]$BuildToolsPath
+    [string]$BuildToolsPath,
+    [switch]$NoInstall
 )
 
 $ErrorActionPreference = 'Stop'
@@ -64,7 +65,7 @@ try {
     $env:RUSTY_V8_SRC_BINDING_PATH = Join-Path $V8Dir $BindingName
 
     if ($Mode -in @('All', 'Test')) {
-        foreach ($Filter in @('custom_settings', 'mouse', 'live_activity', 'progress_messages', 'config_schema_matches_fixture')) {
+        foreach ($Filter in @('custom_settings', 'mouse', 'live_activity', 'progress_messages', 'config_schema_matches_fixture', 'question_mouse', 'async_questions', 'questions_tests')) {
             & $CargoPath test --locked --target x86_64-pc-windows-msvc --profile dev-small -p codex-tui -p codex-core --lib $Filter -- --nocapture
             if ($LASTEXITCODE -ne 0) { throw "TUI tests failed: $Filter" }
         }
@@ -81,13 +82,9 @@ try {
         $Binary = Join-Path $InstallDir 'codex.exe'
         & $Binary --version
         if ($LASTEXITCODE -ne 0) { throw 'Custom CLI version check failed' }
-        $LauncherDir = Join-Path $env:APPDATA 'npm'
-        if (-not (Test-Path -LiteralPath $LauncherDir)) { $LauncherDir = Join-Path $env:USERPROFILE '.local/bin' }
-        New-Item -ItemType Directory -Path $LauncherDir -Force | Out-Null
-        $LauncherPath = Join-Path $LauncherDir 'codex-custom.cmd'
-        $Launcher = "@echo off`r`n`"$Binary`" %*`r`n"
-        [System.IO.File]::WriteAllText($LauncherPath, $Launcher, [System.Text.UTF8Encoding]::new($false))
-        Write-Output "Installed command: $LauncherPath"
+        if (-not $NoInstall) {
+            & (Join-Path $PSScriptRoot 'install-custom-launcher.ps1') -Binary $Binary -ProjectRoot $ProjectRoot
+        } else { Write-Output "Verified candidate (not installed): $Binary" }
     }
 } finally {
     Pop-Location

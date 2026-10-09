@@ -65,7 +65,7 @@ try {
     $env:RUSTY_V8_SRC_BINDING_PATH = Join-Path $V8Dir $BindingName
 
     if ($Mode -in @('All', 'Test')) {
-        foreach ($Filter in @('custom_settings', 'mouse', 'live_activity', 'progress_messages', 'config_schema_matches_fixture', 'question_mouse', 'async_questions', 'questions_tests')) {
+        foreach ($Filter in @('custom_settings', 'mouse', 'live_activity', 'progress_messages', 'config_schema_matches_fixture', 'custom_update_notice', 'question_mouse', 'async_questions', 'questions_tests')) {
             & $CargoPath test --locked --target x86_64-pc-windows-msvc --profile dev-small -p codex-tui -p codex-core --lib $Filter -- --nocapture
             if ($LASTEXITCODE -ne 0) { throw "TUI tests failed: $Filter" }
         }

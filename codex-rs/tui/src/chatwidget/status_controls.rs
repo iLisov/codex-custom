@@ -7,6 +7,10 @@
 use super::*;
 
 impl ChatWidget {
+    pub(crate) fn set_custom_update_notice(&mut self, notice: Option<String>) {
+        self.bottom_pane.set_custom_update_notice(notice);
+    }
+
     /// Update the status indicator header and details.
     ///
     /// Passing `None` clears any existing details. Returns whether the visible status indicator

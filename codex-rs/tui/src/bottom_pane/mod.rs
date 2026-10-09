@@ -314,6 +314,7 @@ pub(crate) struct BottomPane {
     /// Running-hook summary supplied by the lifecycle owner after its reveal delay.
     hook_status_message: Option<String>,
     inline_banner: Option<actionable_banner::InlineBanner>,
+    custom_update_notice: Option<String>,
     /// Streaming may drop the row without losing its elapsed time or modal pause.
     status_timer: crate::status_indicator_widget::StatusTimer,
     /// Unified exec session summary source.
@@ -393,6 +394,7 @@ impl BottomPane {
             status: None,
             hook_status_message: None,
             inline_banner: None,
+            custom_update_notice: None,
             status_timer: crate::status_indicator_widget::StatusTimer::default(),
             unified_exec_footer: UnifiedExecFooter::new(),
             pending_input_preview: PendingInputPreview::new(),
@@ -681,6 +683,11 @@ impl BottomPane {
         if let Some(status) = self.status.as_mut() {
             status.set_animations_enabled(enabled);
         }
+        self.request_redraw();
+    }
+
+    pub(crate) fn set_custom_update_notice(&mut self, notice: Option<String>) {
+        self.custom_update_notice = notice;
         self.request_redraw();
     }
 
@@ -2392,6 +2399,15 @@ impl BottomPane {
                 flex.into()
             };
             flex2.push(/*flex*/ 1, RenderableItem::Owned(above_composer));
+            if let Some(notice) = &self.custom_update_notice {
+                flex2.push(
+                    /*flex*/ 0,
+                    RenderableItem::Owned(Box::new(
+                        Paragraph::new(Line::from(notice.clone()).yellow())
+                            .wrap(ratatui::widgets::Wrap { trim: false }),
+                    )),
+                );
+            }
             let composer: RenderableItem<'_> = if let Some(questions) = question_editor {
                 RenderableItem::Borrowed(questions.as_ref())
             } else if options.max_height.is_none()
@@ -2553,6 +2569,24 @@ mod tests {
             lines.push(row);
         }
         lines.join("\n")
+    }
+
+    #[test]
+    fn custom_update_notice_remains_visible_after_redraw_and_typing() {
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut pane = test_pane(AppEventSender::new(tx));
+        pane.set_custom_update_notice(Some(
+            "Доступна новая версия OpenAI Codex 0.162.1. Обновитесь.".into(),
+        ));
+        let area = Rect::new(0, 0, 80, 24);
+        for typed in ['a', 'b', 'c'] {
+            pane.handle_key_event(crossterm::event::KeyCode::Char(typed).into());
+            let mut buffer = Buffer::empty(area);
+            pane.render(area, &mut buffer);
+            assert!(
+                snapshot_buffer(&buffer).contains("Доступна новая версия OpenAI Codex 0.162.1.")
+            );
+        }
     }
 
     fn render_snapshot(pane: &impl Renderable, area: Rect) -> String {

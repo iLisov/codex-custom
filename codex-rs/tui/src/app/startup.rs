@@ -823,6 +823,7 @@ impl App {
                 .borrow_mut()
                 .continue_from(&mut startup_draft.blossom.borrow_mut());
         }
+        chat_widget.set_custom_update_notice(crate::custom_update_notice::startup_notice());
         chat_widget.remote_connection = remote_connection;
         chat_widget.snapshot_local_images = app_server_target.uses_remote_workspace();
         chat_widget.set_local_worktree_operations(!crate::uses_remote_workspace_or_environment(

@@ -128,6 +128,7 @@ mod color;
 mod config_update;
 mod copy_input_guard;
 pub(crate) mod custom_terminal;
+mod custom_update_notice;
 mod daybreak;
 mod experimental_features;
 mod markdown_copy;

@@ -18,13 +18,8 @@ try {
         $State = @{ checked_at = [datetime]::UtcNow.ToString('o'); release = @{ tag_name = $Release.tag_name; draft = [bool]$Release.draft; prerelease = [bool]$Release.prerelease } } | ConvertTo-Json -Depth 4
         [IO.File]::WriteAllText($StateFile, $State, [Text.UTF8Encoding]::new($false))
     }
-    $Newer = Get-CustomNewerRelease -CurrentVersion $CurrentVersion -Release $Release
-    if ($Newer) {
-        # Keep the script readable by Windows PowerShell 5 without changing its source encoding.
-        $Message = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('0JTQvtGB0YLRg9C/0L3QsCDQvdC+0LLQsNGPINCy0LXRgNGB0LjRjyBPcGVuQUkgQ29kZXgg'))
-        $Suffix = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('LiDQntCx0L3QvtCy0LjRgtC10YHRjC4='))
-        [Console]::Error.WriteLine($Message + $Newer.Version + $Suffix)
-    }
+    # The TUI reads this cache and owns rendering the update notice.
+    # Printing here would be cleared when the terminal enters fullscreen mode.
 } catch {
     # A failed check must not prevent the user's CLI session from starting.
 }

@@ -174,6 +174,7 @@ impl ChatWidget {
         });
 
         self.bottom_pane.show_selection_view(SelectionViewParams {
+            mouse_enabled: true,
             footer_note,
             items,
             title: Some("Update Model Permissions".into()),
@@ -230,6 +231,7 @@ impl ChatWidget {
         );
 
         self.bottom_pane.show_selection_view(SelectionViewParams {
+            mouse_enabled: true,
             header: Box::new(
                 Paragraph::new(vec![
                     Line::from("Auto-review Denials".bold()),
@@ -510,6 +512,7 @@ impl ChatWidget {
         ];
 
         self.bottom_pane.show_selection_view(SelectionViewParams {
+            mouse_enabled: true,
             items,
             header: Box::new(header),
             ..SelectionViewParams::confirmation()

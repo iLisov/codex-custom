@@ -54,8 +54,9 @@ pub(super) fn render_rows(
         empty_message,
         COLUMNS,
     );
+    let height = rendered.lines.saturating_add(/*rhs*/ 2).min(area.height);
     picker_style::render_scroll_indicators(area, buf, rendered);
-    rendered.lines.saturating_add(/*rhs*/ 2).min(area.height)
+    height
 }
 
 pub(super) fn render_rows_single_line(
@@ -76,8 +77,9 @@ pub(super) fn render_rows_single_line(
         empty_message,
         COLUMNS,
     );
+    let height = rendered.lines.saturating_add(/*rhs*/ 2).min(area.height);
     picker_style::render_scroll_indicators(area, buf, rendered);
-    rendered.lines.saturating_add(/*rhs*/ 2).min(area.height)
+    height
 }
 
 /// Keep headers and search above a list, yielding optional gaps on short screens.

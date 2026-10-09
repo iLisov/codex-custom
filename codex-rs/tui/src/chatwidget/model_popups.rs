@@ -189,6 +189,7 @@ impl ChatWidget {
         self.show_model_selection_view(
             model_ids,
             SelectionViewParams {
+                mouse_enabled: true,
                 view_id: Some(MODEL_SELECTION_VIEW_ID),
                 items,
                 header,
@@ -280,6 +281,7 @@ impl ChatWidget {
         self.show_model_selection_view(
             model_ids,
             SelectionViewParams {
+                mouse_enabled: true,
                 view_id: Some(view_id),
                 items,
                 header,
@@ -446,6 +448,7 @@ impl ChatWidget {
         })];
 
         self.bottom_pane.show_selection_view(SelectionViewParams {
+            mouse_enabled: true,
             title: Some(PLAN_MODE_REASONING_SCOPE_TITLE.to_string()),
             subtitle: Some(subtitle),
             items: vec![
@@ -639,6 +642,7 @@ impl ChatWidget {
         .wrap(Wrap { trim: false });
 
         self.bottom_pane.show_selection_view(SelectionViewParams {
+            mouse_enabled: true,
             header: Box::new(header),
             items,
             initial_selected_idx,
@@ -706,6 +710,7 @@ impl ChatWidget {
         ])
         .wrap(Wrap { trim: false });
         self.bottom_pane.show_selection_view(SelectionViewParams {
+            mouse_enabled: true,
             header: Box::new(header),
             items,
             ..SelectionViewParams::picker()

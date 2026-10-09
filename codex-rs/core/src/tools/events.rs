@@ -381,12 +381,22 @@ impl ToolEmitter {
         self.emit(ctx, ToolEventStage::Begin).await;
     }
 
-    fn format_exec_output_for_model(
+    async fn format_exec_output_for_model(
         &self,
         output: &ExecToolCallOutput,
         ctx: ToolEventCtx<'_>,
     ) -> String {
-        super::format_exec_output_for_model(output, ctx.model_info.truncation_policy.into())
+        let mut text =
+            super::format_exec_output_for_model(output, ctx.model_info.truncation_policy.into());
+        if let Some(notice) = super::custom_output::saved_output_notice(
+            &ctx.turn.config,
+            &output.aggregated_output.text,
+        )
+        .await
+        {
+            text = format!("{notice}\n{text}");
+        }
+        text
     }
 
     pub async fn finish(
@@ -397,7 +407,7 @@ impl ToolEmitter {
     ) -> Result<String, FunctionCallError> {
         let (event, result) = match out {
             Ok(output) => {
-                let content = self.format_exec_output_for_model(&output, ctx);
+                let content = self.format_exec_output_for_model(&output, ctx).await;
                 let exit_code = output.exit_code;
                 let event = ToolEventStage::Success {
                     output,
@@ -413,14 +423,14 @@ impl ToolEmitter {
             Err(ToolError::Codex(err)) => match err.details() {
                 CodexErrorDetails::Sandbox(SandboxErr::Timeout { output }) => {
                     let output = output.as_ref().clone();
-                    let response = self.format_exec_output_for_model(&output, ctx);
+                    let response = self.format_exec_output_for_model(&output, ctx).await;
                     let event = ToolEventStage::Failure(ToolEventFailure::Output(output));
                     let result = Err(FunctionCallError::RespondToModel(response));
                     (event, result)
                 }
                 CodexErrorDetails::Sandbox(SandboxErr::Denied { output, .. }) => {
                     let output = output.as_ref().clone();
-                    let response = self.format_exec_output_for_model(&output, ctx);
+                    let response = self.format_exec_output_for_model(&output, ctx).await;
                     // apply_patch can be denied after it has already committed a
                     // known prefix. Reuse the output-bearing path so the visible
                     // item still fails while the turn diff consumes that prefix.

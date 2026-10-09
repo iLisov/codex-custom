@@ -90,6 +90,46 @@ impl StatusLineAccent {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct StatusLineMouseTarget {
+    pub(crate) columns: std::ops::Range<usize>,
+    pub(crate) label: String,
+    pub(crate) command: crate::slash_command::SlashCommand,
+}
+
+pub(crate) fn status_line_mouse_targets(
+    segments: &[(StatusLineItem, String)],
+) -> Vec<StatusLineMouseTarget> {
+    use unicode_width::UnicodeWidthStr;
+
+    let mut offset = 0;
+    let mut targets = Vec::new();
+    for (index, (item, text)) in segments.iter().enumerate() {
+        if index > 0 {
+            offset += STATUS_LINE_SEPARATOR.width();
+        }
+        let end = offset + text.width();
+        let command = match item {
+            StatusLineItem::Permissions | StatusLineItem::ApprovalMode => {
+                Some(crate::slash_command::SlashCommand::Permissions)
+            }
+            StatusLineItem::ModelName | StatusLineItem::ModelWithReasoning => {
+                Some(crate::slash_command::SlashCommand::Model)
+            }
+            _ => None,
+        };
+        if let Some(command) = command {
+            targets.push(StatusLineMouseTarget {
+                columns: offset..end,
+                label: text.clone(),
+                command,
+            });
+        }
+        offset = end;
+    }
+    targets
+}
+
 pub(crate) fn status_line_from_segments<I>(
     segments: I,
     use_theme_colors: bool,

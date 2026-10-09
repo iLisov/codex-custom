@@ -329,6 +329,8 @@ impl App {
 
         let request_handle = app_server.request_handle();
         let event_sender = self.app_event_tx.clone();
+        let cancellation = CancellationToken::new();
+        self.recap.in_flight_cancellation = Some(cancellation.clone());
         let task = tokio::spawn(async move {
             let result = run_temporary_structured_turn(
                 request_handle,
@@ -337,7 +339,7 @@ impl App {
                 recap_output_schema(),
                 /*effort*/ None,
                 receiver,
-                CancellationToken::new(),
+                cancellation,
             )
             .await
             .map_err(|error| error.to_string());
@@ -446,10 +448,27 @@ pub(super) struct RecapState {
     in_flight_trigger: Option<RecapTrigger>,
     in_flight_thread_id: Option<ThreadId>,
     in_flight_request: Option<JoinHandle<()>>,
+    in_flight_cancellation: Option<CancellationToken>,
 }
 
 impl RecapState {
+    pub(super) fn stop_automatic_requests(&mut self) {
+        if let Some(task) = self.scheduled_check.take() {
+            task.abort();
+        }
+        if self.in_flight_trigger == Some(RecapTrigger::Automatic) {
+            // Let the temporary request interrupt the backend and unsubscribe before exiting.
+            if let Some(cancellation) = self.in_flight_cancellation.take() {
+                cancellation.cancel();
+            }
+            self.clear_in_flight_request();
+        }
+    }
+
     fn clear_in_flight_request(&mut self) {
+        if let Some(cancellation) = self.in_flight_cancellation.take() {
+            cancellation.cancel();
+        }
         self.in_flight_request_id = None;
         self.in_flight_trigger = None;
         self.in_flight_thread_id = None;

@@ -190,6 +190,7 @@ fn render_rows(
         cur_y = cur_y.saturating_add(/*rhs*/ 1);
     }
     RenderedRows {
+        item_areas: Vec::new(),
         lines: visible_items as u16,
         items: visible_items,
         has_above: start_idx > 0,

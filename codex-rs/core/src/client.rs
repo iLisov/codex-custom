@@ -206,7 +206,7 @@ struct ModelClientState {
     auth_env_telemetry: AuthEnvTelemetry,
     session_source: SessionSource,
     originator: String,
-    model_verbosity: Option<VerbosityConfig>,
+    model_verbosity: StdMutex<Option<VerbosityConfig>>,
     content_item_kinds_enabled: bool,
     reasoning_effort_override_enabled: bool,
     enable_request_compression: bool,
@@ -469,6 +469,14 @@ fn sideband_websocket_auth_headers(api_auth: &dyn AuthProvider) -> ApiHeaderMap 
 }
 
 impl ModelClient {
+    pub(crate) fn set_model_verbosity(&self, verbosity: Option<VerbosityConfig>) {
+        *self
+            .state
+            .model_verbosity
+            .lock()
+            .unwrap_or_else(|err| err.into_inner()) = verbosity;
+    }
+
     #[allow(clippy::too_many_arguments)]
     /// Creates a new session-scoped `ModelClient`.
     ///
@@ -521,7 +529,7 @@ impl ModelClient {
                 auth_env_telemetry,
                 session_source,
                 originator,
-                model_verbosity,
+                model_verbosity: StdMutex::new(model_verbosity),
                 content_item_kinds_enabled,
                 reasoning_effort_override_enabled,
                 enable_request_compression,
@@ -959,10 +967,15 @@ impl ModelClient {
             reasoning_summary_delivery: codex_api::ReasoningSummaryDelivery::SequentialCutoff,
         });
         let include = vec!["reasoning.encrypted_content".to_string()];
+        let configured_verbosity = *self
+            .state
+            .model_verbosity
+            .lock()
+            .unwrap_or_else(|err| err.into_inner());
         let verbosity = if model_info.support_verbosity {
-            self.state.model_verbosity.or(model_info.default_verbosity)
+            configured_verbosity.or(model_info.default_verbosity)
         } else {
-            if self.state.model_verbosity.is_some() {
+            if configured_verbosity.is_some() {
                 warn!(
                     "model_verbosity is set but ignored as the model does not support verbosity: {}",
                     model_info.slug

@@ -20,6 +20,7 @@ use crate::context::world_state::MultiAgentUsageHintState;
 use crate::context::world_state::PermissionsState;
 use crate::context::world_state::PersistentModeState;
 use crate::context::world_state::PluginsInstructionsState;
+use crate::context::world_state::ProgressMessagesState;
 use crate::context::world_state::RealtimeState;
 use crate::context::world_state::ToolsState;
 use crate::context::world_state::TopLevelToolsState;
@@ -401,6 +402,23 @@ impl Session {
                     .as_ref(),
             ));
         }
+        let progress_messages = turn_context
+            .config
+            .config_layer_stack
+            .effective_config()
+            .get("tui")
+            .and_then(|tui| tui.get("progress_messages"))
+            .and_then(toml::Value::as_bool);
+        let custom = turn_context
+            .config
+            .config_layer_stack
+            .effective_config()
+            .get("tui")
+            .and_then(|tui| tui.get("custom"))
+            .cloned()
+            .and_then(|value| value.try_into().ok())
+            .unwrap_or_default();
+        world_state.add_section(ProgressMessagesState::new(progress_messages).with_custom(custom));
         Ok(world_state)
     }
 }

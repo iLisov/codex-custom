@@ -132,7 +132,9 @@ impl WriteStdinHandler {
                 FunctionCallError::RespondToModel(message)
             })?;
 
-        Ok(boxed_tool_output(response))
+        Ok(boxed_tool_output(
+            crate::tools::custom_output::preserve_unified(&turn.config, response).await,
+        ))
     }
 }
 

@@ -35,6 +35,11 @@ pub(crate) trait BottomPaneView: Renderable {
     /// scheduled after this call.
     fn handle_key_event(&mut self, _key_event: KeyEvent) {}
 
+    /// Return true when the active view consumes a pointer event.
+    fn handle_mouse(&mut self, _event: crossterm::event::MouseEvent) -> bool {
+        false
+    }
+
     /// Return the keymap contexts whose handlers are active in this view.
     fn keymap_contexts(&self) -> KeymapContextSet {
         KeymapContextSet::default()

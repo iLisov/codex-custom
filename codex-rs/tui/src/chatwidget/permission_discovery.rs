@@ -21,6 +21,7 @@ impl ChatWidget {
             return;
         }
         self.bottom_pane.show_selection_view(SelectionViewParams {
+            mouse_enabled: true,
             view_id: Some(VIEW_ID),
             title: Some("Update Model Permissions".into()),
             items: vec![SelectionItem {
@@ -72,6 +73,7 @@ impl ChatWidget {
                 self.open_permission_profiles_popup(discovery);
             }
             Err(message) => self.bottom_pane.show_selection_view(SelectionViewParams {
+                mouse_enabled: true,
                 view_id: Some(VIEW_ID),
                 title: Some("Update Model Permissions".to_string()),
                 subtitle: Some(message),

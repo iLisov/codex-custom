@@ -236,3 +236,32 @@ async fn mcp_refresh_preserves_apps_until_new_session() {
     assert!(reloaded.features.enabled(Feature::Apps));
     assert!(!next.features.enabled(Feature::Apps));
 }
+
+#[tokio::test]
+async fn custom_settings_user_reload_updates_output_and_verbosity_without_mcp_override() {
+    let (_home, base) = base_config().await;
+    let incoming = layered_config(
+        &base,
+        "model_verbosity = 'high'\ntool_output_token_limit = 2000\n",
+        "",
+        "",
+        "",
+    )
+    .await;
+    let refreshed = base
+        .resolve_runtime_refresh(&incoming, RuntimeConfigRefresh::User)
+        .unwrap();
+    assert_eq!(
+        refreshed.model_verbosity,
+        Some(codex_protocol::config_types::Verbosity::High)
+    );
+    assert_eq!(refreshed.tool_output_token_limit, Some(2000));
+    let mcp = refreshed
+        .resolve_runtime_refresh(&base, RuntimeConfigRefresh::Mcp)
+        .unwrap();
+    assert_eq!(mcp.model_verbosity, refreshed.model_verbosity);
+    assert_eq!(
+        mcp.tool_output_token_limit,
+        refreshed.tool_output_token_limit
+    );
+}

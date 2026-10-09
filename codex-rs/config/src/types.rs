@@ -818,6 +818,30 @@ pub struct ModelAvailabilityNuxConfig {
 /// Fallback resize-reflow row cap when Codex cannot identify a terminal-specific scrollback size.
 pub const DEFAULT_TERMINAL_RESIZE_REFLOW_FALLBACK_MAX_ROWS: usize = 1_000;
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum CustomProgressMode {
+    Off,
+    Important,
+    All,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum CustomCheckLevel {
+    Necessary,
+    Normal,
+    Extended,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct CustomTuiPreferences {
+    pub progress: Option<CustomProgressMode>,
+    pub checks: Option<CustomCheckLevel>,
+    pub live_activity: Option<bool>,
+}
+
 /// Collection of settings that are specific to the TUI.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 #[schemars(deny_unknown_fields)]
@@ -829,6 +853,11 @@ pub struct Tui {
     /// Defaults to `true`.
     #[serde(default = "default_true")]
     pub animations: bool,
+
+    /// Request routine assistant progress messages. Omission keeps normal model behavior.
+    pub progress_messages: Option<bool>,
+
+    pub custom: Option<CustomTuiPreferences>,
 
     /// Records the one-time screen-reader detection attempt. Either value skips detection.
     pub screen_reader_detection_done: Option<bool>,

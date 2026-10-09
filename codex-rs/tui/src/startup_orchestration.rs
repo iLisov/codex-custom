@@ -23,6 +23,10 @@ pub(super) async fn run_main_inner(
             "--add-dir is not supported with --remote. Configure additional workspace roots on the server.",
         ));
     }
+    // Custom prompt settings require this build's core, not the shared stock daemon.
+    if explicit_remote_endpoint.is_none() && !cli.agents_overview {
+        cli.no_daemon = true;
+    }
     #[cfg(windows)]
     let elevated_warning = if explicit_remote_endpoint.is_none()
         && !cli.no_daemon

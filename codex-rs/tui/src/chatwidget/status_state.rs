@@ -110,6 +110,7 @@ impl PendingGuardianReviewStatus {
 
 #[derive(Debug)]
 pub(super) struct StatusState {
+    pub(super) live_activity: super::live_activity::LiveActivity,
     /// Only the active reasoning item may update the streamed heading.
     pub(super) reasoning_item_id: Option<String>,
     /// An in-progress snapshot can omit the start of its next live reasoning update.
@@ -128,6 +129,7 @@ pub(super) struct StatusState {
 impl Default for StatusState {
     fn default() -> Self {
         Self {
+            live_activity: super::live_activity::LiveActivity::default(),
             reasoning_item_id: None,
             reasoning_resume_turn_id: None,
             reasoning_recovered_after_refresh: false,

@@ -20,6 +20,17 @@ impl ChatWidget {
         {
             return;
         }
+        if replay_kind != Some(ReplayKind::ResumeInitialMessages) {
+            match &notification {
+                ServerNotification::ItemStarted(item) => {
+                    self.status_state.live_activity.started(&item.item);
+                }
+                ServerNotification::ItemCompleted(item) => {
+                    self.status_state.live_activity.completed(&item.item);
+                }
+                _ => {}
+            }
+        }
         let was_replaying_turn_completion = self.thread_usage.replaying_turn_completion;
         if replay_kind.is_some()
             || matches!(
@@ -396,6 +407,7 @@ impl ChatWidget {
             | ServerNotification::ThreadProjectUpdated(_) => {}
             ServerNotification::ContextCompacted(_) => {}
         }
+        self.refresh_live_activity_status();
         // Tool and hook activity can recreate a hidden row with its default
         // heading. Restore the selected status before that row is rendered.
         if self

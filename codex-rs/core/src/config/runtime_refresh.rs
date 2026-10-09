@@ -30,6 +30,8 @@ pub(crate) enum RuntimeConfigRefresh {
 #[serde(default)]
 struct McpRefreshToml {
     features: Option<FeaturesToml>,
+    model_verbosity: Option<codex_protocol::config_types::Verbosity>,
+    tool_output_token_limit: Option<usize>,
 }
 
 impl Config {
@@ -163,6 +165,10 @@ impl Config {
         }
         if !matches!(scope, RuntimeConfigRefresh::Mcp) {
             config.tool_suggest = resolve_tool_suggest_config_from_layer_stack(&layers);
+        }
+        if !matches!(scope, RuntimeConfigRefresh::Mcp) {
+            config.model_verbosity = cfg.model_verbosity;
+            config.tool_output_token_limit = cfg.tool_output_token_limit;
         }
         config.config_layer_stack = layers;
         if enterprise_retired {

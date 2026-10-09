@@ -411,6 +411,7 @@ impl ChatWidget {
             SlashCommand::MultiAgents => {
                 self.app_event_tx.send(AppEvent::OpenAgentPicker);
             }
+            SlashCommand::Settings => self.open_custom_settings(),
             SlashCommand::Permissions => {
                 if self.remote_connection.is_some()
                     || self.windows_sandbox_local_server
@@ -1320,6 +1321,7 @@ impl ChatWidget {
             | SlashCommand::Agents
             | SlashCommand::MultiAgents
             | SlashCommand::Permissions
+            | SlashCommand::Settings
             | SlashCommand::ElevateSandbox
             | SlashCommand::Experimental
             | SlashCommand::AutoReview

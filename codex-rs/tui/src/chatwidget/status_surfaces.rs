@@ -5,6 +5,7 @@
 
 use super::*;
 use crate::bottom_pane::status_line_from_segments;
+use crate::bottom_pane::status_line_mouse_targets;
 use crate::branch_summary;
 use crate::chatwidget::limit_label_for_window;
 use crate::chatwidget::rate_limits::get_limits_duration;
@@ -203,6 +204,7 @@ impl ChatWidget {
         let enabled = !selections.status_line_items.is_empty();
         self.bottom_pane.set_status_line_enabled(enabled);
         if !enabled {
+            self.bottom_pane.set_status_line_mouse_targets(Vec::new());
             self.set_status_line(/*status_line*/ None);
             self.set_status_line_hyperlink(/*url*/ None);
             return;
@@ -215,6 +217,8 @@ impl ChatWidget {
             }
         }
 
+        self.bottom_pane
+            .set_status_line_mouse_targets(status_line_mouse_targets(&segments));
         self.set_status_line(status_line_from_segments(
             segments,
             self.local_settings.tui.status_line_use_colors,

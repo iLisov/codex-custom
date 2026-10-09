@@ -147,6 +147,7 @@ impl ChatWidget {
             ));
         }
         self.bottom_pane.show_selection_view(SelectionViewParams {
+            mouse_enabled: true,
             view_id: Some(super::permission_discovery::VIEW_ID),
             items,
             title: Some("Update Model Permissions".to_string()),

@@ -111,6 +111,10 @@ impl StatusIndicatorWidget {
         }
     }
 
+    pub(crate) fn set_animations_enabled(&mut self, enabled: bool) {
+        self.animations_enabled = enabled;
+    }
+
     pub(crate) fn interrupt(&self) {
         self.app_event_tx.interrupt();
     }

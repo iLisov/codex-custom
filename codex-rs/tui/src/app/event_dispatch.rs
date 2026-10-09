@@ -3259,6 +3259,29 @@ impl App {
             AppEvent::PersistAgentsOverviewGrouping(grouping) => {
                 self.persist_agents_overview_grouping(grouping).await;
             }
+            AppEvent::OpenCustomSettingsPage(page) => self.chat_widget.open_custom_settings_page(page),
+            AppEvent::SaveCustomSetting(setting) => self.save_custom_setting(tui, app_server, setting).await,
+            AppEvent::UpdateProgressMessages(enabled) => {
+                let edit = crate::legacy_core::config::edit::ConfigEdit::SetPath {
+                    segments: vec!["tui".into(), "progress_messages".into()],
+                    value: toml_edit::value(enabled),
+                };
+                match ConfigEditsBuilder::for_config_path(self.local_settings.user_config_path.as_path())
+                    .with_edits([edit]).apply().await {
+                    Ok(()) => {
+                        self.local_settings.tui.progress_messages = Some(enabled);
+                        self.chat_widget.local_settings.tui.progress_messages = Some(enabled);
+                        match app_server.reload_user_config().await {
+                            Ok(_) => self.chat_widget.add_info_message(
+                                format!("Сообщения о ходе работы: {}. Со следующего запроса.", if enabled { "включены" } else { "выключены" }), None),
+                            Err(err) => self.chat_widget.add_error_message(
+                                format!("Настройка сохранена, но обновить сессию не удалось: {err}. Перезапустите Codex Custom.")),
+                        }
+                    }
+                    Err(err) => self.chat_widget.add_error_message(format!("Не удалось сохранить настройку: {err}")),
+                }
+                tui.frame_requester().schedule_frame();
+            }
             AppEvent::SyntaxThemeSelected { name } => {
                 let edit = crate::legacy_core::config::edit::syntax_theme_edit(&name);
                 let apply_result = ConfigEditsBuilder::for_config_path(self.local_settings.user_config_path.as_path())

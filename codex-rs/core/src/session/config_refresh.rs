@@ -160,6 +160,15 @@ impl Session {
             }
             let previous_config = notify_contributors
                 .then(|| self.build_effective_session_config(&state.session_configuration));
+            if !matches!(scope, RuntimeConfigRefresh::Mcp) {
+                state
+                    .session_configuration
+                    .model_info_overrides
+                    .tool_output_token_limit = config.tool_output_token_limit;
+                self.services
+                    .model_client
+                    .set_model_verbosity(config.model_verbosity);
+            }
             state.session_configuration.original_config_do_not_use = Arc::clone(&config);
             drop(policy_guard);
             if matches!(scope, RuntimeConfigRefresh::Mcp) {

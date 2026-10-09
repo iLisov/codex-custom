@@ -193,6 +193,7 @@ pub(crate) struct SelectionItem {
 /// `description_layout` optionally hides descriptions when their column would become too narrow.
 pub(crate) struct SelectionViewParams {
     pub presentation: super::ViewPresentation,
+    pub mouse_enabled: bool,
     pub picker_surface: PickerSurface,
     /// Upper row budget; compact completion menus retain the default of eight.
     pub max_visible_rows: usize,
@@ -258,6 +259,7 @@ impl Default for SelectionViewParams {
             max_visible_rows: MAX_POPUP_ROWS,
             reserve_result_rows: false,
             presentation: super::ViewPresentation::Inline,
+            mouse_enabled: false,
             view_id: None,
             title: None,
             subtitle: None,
@@ -303,6 +305,8 @@ pub(crate) struct ListSelectionView {
     footer_note: Option<Line<'static>>,
     footer_hint: Option<Line<'static>>,
     tab_footer_hints: Vec<(String, Line<'static>)>,
+    mouse_enabled: bool,
+    mouse_targets: std::cell::RefCell<Vec<(Rect, usize)>>,
     items: Vec<SelectionItem>,
     tabs: Vec<SelectionTab>,
     active_tab_idx: Option<usize>,
@@ -443,6 +447,8 @@ impl ListSelectionView {
             footer_note: params.footer_note,
             footer_hint: params.footer_hint,
             tab_footer_hints: params.tab_footer_hints,
+            mouse_enabled: params.mouse_enabled,
+            mouse_targets: std::cell::RefCell::new(Vec::new()),
             items: params.items,
             tabs: params.tabs,
             active_tab_idx,
@@ -1090,6 +1096,50 @@ impl BottomPaneView for ListSelectionView {
         crate::keymap::KeymapContextSet::new(crate::keymap::KeymapContext::List)
     }
 
+    fn handle_mouse(&mut self, event: crossterm::event::MouseEvent) -> bool {
+        use crossterm::event::MouseButton;
+        use crossterm::event::MouseEventKind;
+        use ratatui::layout::Position;
+
+        if !self.mouse_enabled || !event.modifiers.is_empty() {
+            return false;
+        }
+        let target = self
+            .mouse_targets
+            .borrow()
+            .iter()
+            .find(|(area, _)| area.contains(Position::new(event.column, event.row)))
+            .map(|(_, index)| *index);
+        let Some(index) = target else {
+            return false;
+        };
+        match event.kind {
+            MouseEventKind::Moved | MouseEventKind::Down(MouseButton::Left) => {
+                if self.visible_idx_is_disabled(index) {
+                    return true;
+                }
+                if self.state.selected_idx != Some(index) {
+                    self.state.selected_idx = Some(index);
+                    self.fire_selection_changed();
+                }
+                if event.kind == MouseEventKind::Down(MouseButton::Left) {
+                    self.accept(SelectionActionKind::Primary);
+                }
+                true
+            }
+            MouseEventKind::ScrollUp => {
+                self.move_up();
+                true
+            }
+            MouseEventKind::ScrollDown => {
+                self.move_down();
+                true
+            }
+            MouseEventKind::Up(MouseButton::Left) => true,
+            _ => false,
+        }
+    }
+
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         // Searchable lists reserve printable characters for query input. This
         // keeps vim-style plain j/k/h/l useful in non-search lists without
@@ -1337,6 +1387,7 @@ impl Renderable for ListSelectionView {
     }
 
     fn render(&self, area: Rect, buf: &mut Buffer) {
+        self.mouse_targets.borrow_mut().clear();
         self.rendered_item_count.set(/*val*/ 0);
         if area.height == 0 || area.width == 0 {
             return;
@@ -1494,7 +1545,7 @@ impl Renderable for ListSelectionView {
                 width: effective_rows_width.max(1),
                 height: list_area.height,
             };
-            let rendered_rows = match self.row_display {
+            let mut rendered_rows = match self.row_display {
                 SelectionRowDisplay::Wrapped => render_rows_with_col_width_mode(
                     render_area,
                     buf,
@@ -1514,6 +1565,10 @@ impl Renderable for ListSelectionView {
                     column_width,
                 ),
             };
+            if self.mouse_enabled {
+                self.mouse_targets
+                    .replace(std::mem::take(&mut rendered_rows.item_areas));
+            }
             self.rendered_item_count.set(rendered_rows.items);
             if above_area.height > 0 && below_area.height > 0 {
                 render_scroll_indicators(
@@ -1682,6 +1737,144 @@ mod tests {
         fn desired_height(&self, _width: u16) -> u16 {
             self.height
         }
+    }
+
+    fn permissions_mouse_event(
+        kind: crossterm::event::MouseEventKind,
+        area: Rect,
+    ) -> crossterm::event::MouseEvent {
+        crossterm::event::MouseEvent {
+            kind,
+            column: area.x + 2,
+            row: area.y,
+            modifiers: KeyModifiers::NONE,
+        }
+    }
+
+    fn permissions_mouse_render(view: &ListSelectionView, area: Rect) -> Vec<(Rect, usize)> {
+        let mut buffer = Buffer::empty(Rect::new(0, 0, area.right(), area.bottom()));
+        view.render(area, &mut buffer);
+        view.mouse_targets.borrow().clone()
+    }
+
+    #[test]
+    fn permissions_mouse_hover_does_not_accept_and_click_uses_filtered_index() {
+        use crossterm::event::MouseButton;
+        use crossterm::event::MouseEventKind;
+        use std::sync::Arc;
+        use std::sync::atomic::AtomicUsize;
+        use std::sync::atomic::Ordering;
+
+        let accepted = Arc::new(AtomicUsize::new(0));
+        let count = accepted.clone();
+        let (tx, _rx) = unbounded_channel();
+        let mut view = new_view(
+            SelectionViewParams {
+                mouse_enabled: true,
+                is_searchable: true,
+                items: vec![
+                    SelectionItem {
+                        name: "Blocked".into(),
+                        is_disabled: true,
+                        ..Default::default()
+                    },
+                    SelectionItem {
+                        name: "Other".into(),
+                        ..Default::default()
+                    },
+                    SelectionItem {
+                        name: "Allowed".into(),
+                        search_value: Some("Allowed".into()),
+                        description: Some(
+                            "A wrapped description that belongs to the same choice.".into(),
+                        ),
+                        actions: vec![Box::new(move |_| {
+                            count.fetch_add(1, Ordering::SeqCst);
+                        })],
+                        dismiss_on_select: true,
+                        ..Default::default()
+                    },
+                ],
+                ..Default::default()
+            },
+            AppEventSender::new(tx),
+        );
+        view.set_search_query("Allowed".into());
+        let regions = permissions_mouse_render(&view, Rect::new(5, 3, 38, 15));
+        let area = regions[0].0;
+        assert!(view.handle_mouse(permissions_mouse_event(MouseEventKind::Moved, area)));
+        assert_eq!(accepted.load(Ordering::SeqCst), 0);
+        assert!(!view.is_complete());
+        assert_eq!(view.selected_actual_idx(), Some(2));
+        assert!(view.handle_mouse(permissions_mouse_event(
+            MouseEventKind::Down(MouseButton::Left),
+            area
+        )));
+        assert_eq!(accepted.load(Ordering::SeqCst), 1);
+        assert_eq!(view.completion(), Some(ViewCompletion::Accepted));
+    }
+
+    #[test]
+    fn permissions_mouse_disabled_choices_never_accept() {
+        use crossterm::event::MouseButton;
+        use crossterm::event::MouseEventKind;
+
+        let (tx, _rx) = unbounded_channel();
+        let mut view = new_view(
+            SelectionViewParams {
+                mouse_enabled: true,
+                items: vec![
+                    SelectionItem {
+                        name: "Blocked".into(),
+                        is_disabled: true,
+                        dismiss_on_select: true,
+                        ..Default::default()
+                    },
+                    SelectionItem {
+                        name: "Allowed".into(),
+                        ..Default::default()
+                    },
+                ],
+                ..Default::default()
+            },
+            AppEventSender::new(tx),
+        );
+        let regions = permissions_mouse_render(&view, Rect::new(0, 0, 60, 12));
+        let area = regions.iter().find(|(_, index)| *index == 0).unwrap().0;
+        assert!(view.handle_mouse(permissions_mouse_event(
+            MouseEventKind::Down(MouseButton::Left),
+            area
+        )));
+        assert!(!view.is_complete());
+        assert_ne!(view.selected_actual_idx(), Some(0));
+    }
+
+    #[test]
+    fn permissions_mouse_regions_follow_redraw_and_other_pickers_stay_keyboard_only() {
+        use crossterm::event::MouseButton;
+        use crossterm::event::MouseEventKind;
+
+        let (tx, _rx) = unbounded_channel();
+        let mut view = new_view(
+            SelectionViewParams {
+                mouse_enabled: true,
+                items: vec![SelectionItem {
+                    name: "Allowed".into(),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+            AppEventSender::new(tx),
+        );
+        let old = permissions_mouse_render(&view, Rect::new(0, 0, 60, 12))[0].0;
+        permissions_mouse_render(&view, Rect::new(0, 20, 60, 12));
+        assert!(!view.handle_mouse(permissions_mouse_event(
+            MouseEventKind::Down(MouseButton::Left),
+            old
+        )));
+        view.mouse_enabled = false;
+        permissions_mouse_render(&view, Rect::new(0, 20, 60, 12));
+        assert!(view.mouse_targets.borrow().is_empty());
     }
 
     fn new_view(params: SelectionViewParams, tx: AppEventSender) -> ListSelectionView {

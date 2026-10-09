@@ -1111,3 +1111,22 @@ async fn recap_failure_retries_once_for_the_same_turn_revision() {
         }
     }
 }
+
+#[test]
+fn custom_settings_auto_recap_cancellation_preserves_manual_request() {
+    for trigger in [RecapTrigger::Automatic, RecapTrigger::Manual] {
+        let cancellation = tokio_util::sync::CancellationToken::new();
+        let mut state = RecapState::default();
+        state.in_flight_trigger = Some(trigger);
+        state.in_flight_cancellation = Some(cancellation.clone());
+        state.stop_automatic_requests();
+        assert_eq!(
+            cancellation.is_cancelled(),
+            trigger == RecapTrigger::Automatic
+        );
+        assert_eq!(
+            state.in_flight_trigger.is_some(),
+            trigger == RecapTrigger::Manual
+        );
+    }
+}

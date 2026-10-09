@@ -383,6 +383,7 @@ mod reconnect;
 pub(crate) use reconnect::RestrictedInputMode;
 mod slash_input;
 mod sparkle;
+mod status_mouse;
 mod status_surface;
 mod vim_history;
 mod vim_search;
@@ -599,6 +600,7 @@ pub(crate) struct ChatComposer {
     app_event_tx: AppEventSender,
     history: ChatComposerHistory,
     agents_navigation_enabled: bool,
+    status_line_mouse: status_mouse::StatusLineMouse,
     footer: FooterState,
     has_focus: bool,
     frame_requester: Option<FrameRequester>,
@@ -730,6 +732,7 @@ impl ChatComposer {
             app_event_tx,
             history: ChatComposerHistory::new(),
             agents_navigation_enabled: false,
+            status_line_mouse: status_mouse::StatusLineMouse::default(),
             footer: FooterState {
                 quit_shortcut_expires_at: None,
                 quit_shortcut_key: key_hint::ctrl(KeyCode::Char('c')),
@@ -4950,6 +4953,19 @@ impl ChatComposer {
             self.cursor_pos_with_options(area, options),
             buf,
         );
+        let mouse_status_area = if !status.is_empty() {
+            Some(status)
+        } else if uses_passive_footer_status_layout(&self.hint_footer_props(options))
+            && !self.footer.flash_visible()
+            && self.footer.hint_override.is_none()
+            && self.history_search.is_none()
+            && self.draft.textarea.vim_query().is_none()
+        {
+            Some(footer_rect)
+        } else {
+            None
+        };
+        self.status_line_mouse.render(mouse_status_area, buf);
         if options.footer.is_some_and(|footer| footer.is_interactive) {
             buf.set_style(composer_rect, Style::default().dim());
         }

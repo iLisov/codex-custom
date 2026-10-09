@@ -1504,6 +1504,37 @@
       ],
       "type": "string"
     },
+    "CustomCheckLevel": {
+      "enum": [
+        "necessary",
+        "normal",
+        "extended"
+      ],
+      "type": "string"
+    },
+    "CustomProgressMode": {
+      "enum": [
+        "off",
+        "important",
+        "all"
+      ],
+      "type": "string"
+    },
+    "CustomTuiPreferences": {
+      "additionalProperties": false,
+      "properties": {
+        "checks": {
+          "$ref": "#/definitions/CustomCheckLevel"
+        },
+        "live_activity": {
+          "type": "boolean"
+        },
+        "progress": {
+          "$ref": "#/definitions/CustomProgressMode"
+        }
+      },
+      "type": "object"
+    },
     "ExperimentalRequestUserInput": {
       "additionalProperties": false,
       "properties": {
@@ -4572,6 +4603,9 @@
           "default": "auto",
           "description": "Copy selected transcript text when the mouse button is released. Defaults to `auto`: enabled except in direct terminals known to forward their native copy shortcut (Ghostty 1.2+, Kitty on macOS, Windows Terminal, and VS Code on Windows). Unknown terminals, Ghostty without a recognized version, and tmux/Zellij default to copying."
         },
+        "custom": {
+          "$ref": "#/definitions/CustomTuiPreferences"
+        },
         "disable_paste_burst": {
           "description": "When true, disables burst-paste detection for typed input entirely. All characters are inserted as they are received, and no buffering or placeholder replacement will occur for fast keypress bursts. Overrides the legacy top-level `disable_paste_burst` setting. Defaults to `false`.",
           "type": "boolean"
@@ -4843,6 +4877,10 @@
           ],
           "default": "composer",
           "description": "Where the terminal pet should anchor vertically.\n\nDefaults to `composer`, which follows the current TUI composer viewport."
+        },
+        "progress_messages": {
+          "description": "Request routine assistant progress messages. Omission keeps normal model behavior.",
+          "type": "boolean"
         },
         "question_esc_back": {
           "default": true,

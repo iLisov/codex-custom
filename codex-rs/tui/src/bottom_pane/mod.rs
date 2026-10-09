@@ -115,7 +115,9 @@ pub(crate) use async_questions::QuestionSubmission;
 pub(crate) use mcp_server_elicitation::McpServerElicitationFormRequest;
 pub(crate) use mcp_server_elicitation::McpServerElicitationOverlay;
 pub(crate) use request_user_input::RequestUserInputOverlay;
+pub(crate) use status_line_style::StatusLineMouseTarget;
 pub(crate) use status_line_style::status_line_from_segments;
+pub(crate) use status_line_style::status_line_mouse_targets;
 pub(crate) use voice_strip::VoiceStripPhase;
 pub(crate) use voice_strip::VoiceStripState;
 mod bottom_pane_view;
@@ -672,6 +674,14 @@ impl BottomPane {
         }
         self.request_redraw();
         enabled
+    }
+
+    pub(crate) fn set_animations_enabled(&mut self, enabled: bool) {
+        self.animations_enabled = enabled;
+        if let Some(status) = self.status.as_mut() {
+            status.set_animations_enabled(enabled);
+        }
+        self.request_redraw();
     }
 
     pub fn status_widget(&self) -> Option<&StatusIndicatorWidget> {
@@ -1825,6 +1835,39 @@ impl BottomPane {
             return false;
         }
         self.composer.prepare_mouse(event)
+    }
+
+    pub(crate) fn set_status_line_mouse_targets(&mut self, targets: Vec<StatusLineMouseTarget>) {
+        if self.composer.set_status_line_mouse_targets(targets) {
+            self.request_redraw();
+        }
+    }
+
+    pub(crate) fn handle_status_line_mouse(
+        &mut self,
+        event: crossterm::event::MouseEvent,
+    ) -> (bool, Option<crate::slash_command::SlashCommand>) {
+        if !self.no_modal_or_popup_active() {
+            self.composer.clear_status_line_mouse_regions();
+            return (false, None);
+        }
+        self.composer.handle_status_line_mouse(event)
+    }
+
+    pub(crate) fn handle_view_mouse(&mut self, event: crossterm::event::MouseEvent) -> bool {
+        let Some(view) = self.view_stack.last_mut() else {
+            return false;
+        };
+        if !view.handle_mouse(event) {
+            return false;
+        }
+        let complete = view.is_complete();
+        let completion = view.completion();
+        if complete {
+            self.pop_active_view_with_completion(completion);
+        }
+        self.request_redraw();
+        true
     }
 
     pub(crate) fn handle_composer_mouse(&mut self, event: crossterm::event::MouseEvent) -> bool {

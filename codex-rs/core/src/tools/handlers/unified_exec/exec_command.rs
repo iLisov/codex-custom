@@ -438,7 +438,13 @@ impl ExecCommandHandler {
             None => manager.exec_command(request, &context).await,
         };
         match result {
-            Ok(response) => Ok(boxed_tool_output(response)),
+            Ok(response) => Ok(boxed_tool_output(
+                crate::tools::custom_output::preserve_unified(
+                    &context.step_context.turn.config,
+                    response,
+                )
+                .await,
+            )),
             Err(UnifiedExecError::SandboxDenied {
                 output,
                 original_token_count,

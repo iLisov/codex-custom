@@ -48,6 +48,13 @@ impl ChatWidget {
         {
             return;
         }
+        if self.custom_live_activity_enabled()
+            && let Some(header) = self.status_state.live_activity.label()
+        {
+            self.status_state.terminal_title_status_kind = TerminalTitleStatusKind::Working;
+            self.set_status_header(header);
+            return;
+        }
         self.reasoning_header =
             latest_summary_line(&self.reasoning_buffer).or(self.reasoning_header.take());
         if let Some(header) = self.reasoning_header.clone() {

@@ -57,6 +57,19 @@ impl LocalSettings {
             tui: Tui {
                 notification_settings: config.tui_notifications.clone(),
                 animations: config.animations,
+                progress_messages: config
+                    .config_layer_stack
+                    .effective_config()
+                    .get("tui")
+                    .and_then(|tui| tui.get("progress_messages"))
+                    .and_then(toml::Value::as_bool),
+                custom: config
+                    .config_layer_stack
+                    .effective_config()
+                    .get("tui")
+                    .and_then(|tui| tui.get("custom"))
+                    .cloned()
+                    .and_then(|value| value.try_into().ok()),
                 screen_reader_detection_done: None,
                 effects: config.tui_effects,
                 rendering: config.tui_rendering,

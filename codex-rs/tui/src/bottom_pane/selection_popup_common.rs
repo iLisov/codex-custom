@@ -360,8 +360,9 @@ fn adjust_start_for_wrapped_selection_visibility(
 
 /// Counts painted rows and items and reports content hidden outside the viewport.
 /// The line count includes the single-line empty placeholder when shown.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Default)]
 pub(crate) struct RenderedRows {
+    pub(crate) item_areas: Vec<(Rect, usize)>,
     pub(crate) lines: u16,
     pub(crate) items: usize,
     pub(crate) has_above: bool,
@@ -420,6 +421,7 @@ fn render_rows_inner(
     // shared description column. Stop when we run out of vertical space.
     let mut cur_y = area.y;
     let mut rendered_lines: u16 = 0;
+    let mut item_areas = Vec::new();
     let mut rendered_items = 0;
     let mut clipped = false;
     for (i, row) in rows_all.iter().enumerate().skip(start_idx).take(max_items) {
@@ -440,6 +442,7 @@ fn render_rows_inner(
         }
 
         // Render the wrapped lines.
+        let item_top = cur_y;
         let mut rendered_item = false;
         for line in wrapped {
             if cur_y >= area.y + area.height {
@@ -459,11 +462,13 @@ fn render_rows_inner(
             rendered_item = true;
         }
         if rendered_item {
+            item_areas.push((Rect::new(area.x, item_top, area.width, cur_y - item_top), i));
             rendered_items += 1;
         }
     }
 
     RenderedRows {
+        item_areas,
         lines: rendered_lines,
         items: rendered_items,
         has_above: start_idx > 0,
@@ -569,6 +574,7 @@ pub(crate) fn render_rows_single_line_with_col_width_mode(
 
     let mut cur_y = area.y;
     let mut rendered_lines: u16 = 0;
+    let mut item_areas = Vec::new();
     for (i, row) in rows_all
         .iter()
         .enumerate()
@@ -606,11 +612,13 @@ pub(crate) fn render_rows_single_line_with_col_width_mode(
             },
             buf,
         );
+        item_areas.push((Rect::new(area.x, cur_y, area.width, 1), i));
         cur_y = cur_y.saturating_add(1);
         rendered_lines = rendered_lines.saturating_add(1);
     }
 
     RenderedRows {
+        item_areas,
         lines: rendered_lines,
         items: rendered_lines as usize,
         has_above: start_idx > 0,

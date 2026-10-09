@@ -27,8 +27,16 @@ impl ChatWidget {
         self.bottom_pane.copy_composer_selection(event, copy)
     }
 
+    pub(crate) fn handle_view_mouse(&mut self, event: crossterm::event::MouseEvent) -> bool {
+        self.bottom_pane.handle_view_mouse(event)
+    }
+
     pub(crate) fn handle_composer_mouse(&mut self, event: crossterm::event::MouseEvent) -> bool {
-        self.bottom_pane.handle_composer_mouse(event)
+        let (handled, clicked) = self.bottom_pane.handle_status_line_mouse(event);
+        if let Some(command) = clicked {
+            self.dispatch_command(command);
+        }
+        handled || self.bottom_pane.handle_composer_mouse(event)
     }
 
     /// Snapshot only the editable paste target, without changing pending submissions.

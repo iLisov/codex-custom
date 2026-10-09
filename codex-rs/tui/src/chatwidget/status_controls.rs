@@ -18,6 +18,11 @@ impl ChatWidget {
         details_capitalization: StatusDetailsCapitalization,
         details_max_lines: usize,
     ) -> bool {
+        let header = if header == "Working" && self.custom_live_activity_enabled() {
+            self.status_state.live_activity.label().unwrap_or(header)
+        } else {
+            header
+        };
         // Follow-up input and background activity must not obscure compaction.
         // Retry errors still get their own status until the next notification.
         let (header, details, details_max_lines) = if self.status_state.compaction.is_some()

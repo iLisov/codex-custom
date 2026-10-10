@@ -2,18 +2,16 @@
 source: tui/src/transcript_view/search_tests.rs
 expression: "crate::transcript_view::tests::text(&buffer)"
 ---
-• Running 'echo visible …
-  └ (no output)
-    + Show details
+• Run 'echo visible …
+    ▸ Details
 
-• Running 'echo visible …
-  └ (no output)
-    + Show details
+• Run 'echo visible …
+    ▸ Details
 
 $ 'echo visible
     echo hidden newer needle'
-    − Show less
+    ▾ Less
 
 $ 'echo visible
     echo hidden manual'
-    − Show less
+    ▾ Less

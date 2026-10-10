@@ -165,6 +165,10 @@ impl Session {
                     .session_configuration
                     .model_info_overrides
                     .tool_output_token_limit = config.tool_output_token_limit;
+                state
+                    .session_configuration
+                    .model_info_overrides
+                    .auto_compact_token_limit = config.model_auto_compact_token_limit;
                 self.services
                     .model_client
                     .set_model_verbosity(config.model_verbosity);

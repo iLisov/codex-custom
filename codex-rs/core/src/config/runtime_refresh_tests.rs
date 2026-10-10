@@ -242,7 +242,7 @@ async fn custom_settings_user_reload_updates_output_and_verbosity_without_mcp_ov
     let (_home, base) = base_config().await;
     let incoming = layered_config(
         &base,
-        "model_verbosity = 'high'\ntool_output_token_limit = 2000\n",
+        "model_verbosity = 'high'\ntool_output_token_limit = 2000\nmodel_auto_compact_token_limit = 200000\n",
         "",
         "",
         "",
@@ -256,6 +256,7 @@ async fn custom_settings_user_reload_updates_output_and_verbosity_without_mcp_ov
         Some(codex_protocol::config_types::Verbosity::High)
     );
     assert_eq!(refreshed.tool_output_token_limit, Some(2000));
+    assert_eq!(refreshed.model_auto_compact_token_limit, Some(200000));
     let mcp = refreshed
         .resolve_runtime_refresh(&base, RuntimeConfigRefresh::Mcp)
         .unwrap();
@@ -263,5 +264,13 @@ async fn custom_settings_user_reload_updates_output_and_verbosity_without_mcp_ov
     assert_eq!(
         mcp.tool_output_token_limit,
         refreshed.tool_output_token_limit
+    );
+    assert_eq!(mcp.model_auto_compact_token_limit, Some(200000));
+    let reset = refreshed
+        .resolve_runtime_refresh(&base, RuntimeConfigRefresh::User)
+        .unwrap();
+    assert_eq!(
+        reset.model_auto_compact_token_limit,
+        base.model_auto_compact_token_limit
     );
 }

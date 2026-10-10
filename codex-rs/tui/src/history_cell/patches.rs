@@ -29,12 +29,7 @@ impl HistoryCell for PatchHistoryCell {
     }
 
     fn compact_hyperlink_lines(&self, width: u16) -> Vec<HyperlinkLine> {
-        crate::diff_render::create_diff_preview_with_links(
-            &self.changes,
-            &self.cwd,
-            usize::from(width),
-            super::activity_preview::DETAIL_PREVIEW_LINES,
-        )
+        crate::diff_render::create_diff_activity_with_links(&self.changes, &self.cwd, width)
     }
 
     fn display_lines(&self, width: u16) -> Vec<Line<'static>> {

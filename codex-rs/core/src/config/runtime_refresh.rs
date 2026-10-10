@@ -32,6 +32,7 @@ struct McpRefreshToml {
     features: Option<FeaturesToml>,
     model_verbosity: Option<codex_protocol::config_types::Verbosity>,
     tool_output_token_limit: Option<usize>,
+    model_auto_compact_token_limit: Option<i64>,
 }
 
 impl Config {
@@ -169,6 +170,7 @@ impl Config {
         if !matches!(scope, RuntimeConfigRefresh::Mcp) {
             config.model_verbosity = cfg.model_verbosity;
             config.tool_output_token_limit = cfg.tool_output_token_limit;
+            config.model_auto_compact_token_limit = cfg.model_auto_compact_token_limit;
         }
         config.config_layer_stack = layers;
         if enterprise_retired {

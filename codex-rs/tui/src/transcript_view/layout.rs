@@ -36,10 +36,10 @@ pub(super) fn activity_layout(
         return layout;
     }
     let label = match (expanded, lines.disclosure) {
-        (true, _) => "− Show less".to_owned(),
+        (true, _) => "▾ Less".to_owned(),
         (false, Some(ActivityDisclosure::OutputLines(count))) => {
             let noun = if count == 1 { "line" } else { "lines" };
-            let mut label = format!("+ {count} {noun}");
+            let mut label = format!("▸ {count} {noun}");
             if let Some(shortcut) = shortcut {
                 let hint = format!(" ({} to expand)", shortcut.display_label());
                 let indent = usize::from(width / 4).min(/*other*/ 4);
@@ -49,7 +49,7 @@ pub(super) fn activity_layout(
             }
             label
         }
-        (false, Some(ActivityDisclosure::Generic) | None) => "+ Show details".to_owned(),
+        (false, Some(ActivityDisclosure::Generic) | None) => "▸ Details".to_owned(),
     };
     match source_offset {
         Some(offset) => layout.with_disclosure_control_at(label, offset),

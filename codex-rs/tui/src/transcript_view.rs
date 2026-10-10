@@ -369,6 +369,23 @@ impl TranscriptView {
         self.mode = mode;
     }
 
+    pub(crate) fn set_compact_actions(&mut self, compact: bool) {
+        let expanded = !compact;
+        if self.disclosure.default_expanded == expanded {
+            return;
+        }
+        self.selection = None;
+        self.copy_mode = None;
+        self.release_live_reading();
+        self.disclosure.default_expanded = expanded;
+        self.disclosure.expanded.clear();
+        self.disclosure.collapsed.clear();
+        self.cache.clear();
+        self.live_key = None;
+        self.live_separated = None;
+        self.restart_search();
+    }
+
     pub(crate) fn has_active_interaction(&self) -> bool {
         self.selection.is_some() || self.search.is_active() || self.is_activity_focused()
     }

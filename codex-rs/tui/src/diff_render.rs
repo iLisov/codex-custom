@@ -379,14 +379,39 @@ pub(crate) fn create_diff_summary_with_links(
     render_changes_block(rows, wrap_cols, cwd, /*preview_lines*/ None)
 }
 
-/// Preserve each file's path and change counts while bounding its preview body.
-pub(crate) fn create_diff_preview_with_links(
+pub(crate) fn create_diff_activity_with_links(
     changes: &HashMap<PathBuf, FileChange>,
     cwd: &Path,
-    wrap_cols: usize,
-    preview_lines: usize,
+    width: u16,
 ) -> Vec<HyperlinkLine> {
-    render_changes_block(collect_rows(changes), wrap_cols, cwd, Some(preview_lines))
+    use crate::history_cell::activity_preview::activity_header;
+    use crate::history_cell::activity_preview::short_path;
+
+    collect_rows(changes)
+        .into_iter()
+        .map(|row| {
+            let title = match row.change {
+                FileChange::Add { .. } => "Create",
+                FileChange::Delete { .. } => "Delete",
+                _ => "Edit",
+            };
+            let mut path = short_path(&display_path_for(row.path, cwd));
+            if let Some(destination) = row.move_path {
+                path.push_str(&format!(
+                    " → {}",
+                    short_path(&display_path_for(destination, cwd))
+                ));
+            }
+            let mut counts = Vec::new();
+            if row.added > 0 {
+                counts.push(format!("  +{}", row.added).green());
+            }
+            if row.removed > 0 {
+                counts.push(format!("  -{}", row.removed).red());
+            }
+            activity_header("●".green(), title, &path, counts, width)
+        })
+        .collect()
 }
 
 // Shared row for per-file presentation

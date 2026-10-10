@@ -16,6 +16,8 @@ use super::*;
 
 pub(super) struct Disclosure {
     pub(super) expanded: HashSet<String>,
+    pub(super) collapsed: HashSet<String>,
+    pub(super) default_expanded: bool,
     pub(super) focused: Option<Vec<String>>,
     pub(super) live_ids: Vec<String>,
     pub(super) keymap: RuntimeKeymap,
@@ -25,6 +27,8 @@ impl Default for Disclosure {
     fn default() -> Self {
         Self {
             expanded: HashSet::new(),
+            collapsed: HashSet::new(),
+            default_expanded: false,
             focused: None,
             live_ids: Vec::new(),
             keymap: RuntimeKeymap::defaults(),
@@ -35,6 +39,9 @@ impl Default for Disclosure {
 impl Disclosure {
     pub(super) fn is_expanded(&self, ids: &[String]) -> bool {
         ids.iter().any(|id| self.expanded.contains(id))
+            || (self.default_expanded
+                && !ids.is_empty()
+                && !ids.iter().any(|id| self.collapsed.contains(id)))
     }
 }
 
@@ -358,7 +365,9 @@ impl TranscriptView {
             });
         if matched || self.disclosure.is_expanded(&ids) {
             self.disclosure.expanded.retain(|id| !ids.contains(id));
+            self.disclosure.collapsed.extend(ids.iter().cloned());
         } else {
+            self.disclosure.collapsed.retain(|id| !ids.contains(id));
             self.disclosure.expanded.extend(ids.iter().cloned());
         }
         self.disclosure.focused = Some(ids);

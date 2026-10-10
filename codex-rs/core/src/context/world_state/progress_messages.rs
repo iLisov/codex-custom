@@ -55,7 +55,7 @@ impl ContextualUserFragment for ProgressMessagesInstruction {
                 "The earlier progress-message preference no longer applies. Follow the normal communication instructions."
             }
         };
-        use codex_config::types::{CustomCheckLevel, CustomProgressMode};
+        use codex_config::types::{CustomCheckLevel, CustomEditMessages, CustomProgressMode};
         let mut text = instruction.to_string();
         if self.1.progress == Some(CustomProgressMode::Important) {
             text = "The user wants only major progress milestones. Skip routine preambles and tool-by-tool narration. Briefly report a significant finding, a change of approach, or a blocker; retain necessary questions and approvals. This replaces earlier requirements for frequent updates.".into();
@@ -72,6 +72,16 @@ impl ContextualUserFragment for ProgressMessagesInstruction {
             );
         } else {
             text.push_str("\nUse the normal project validation instructions; earlier custom validation preferences no longer apply.");
+        }
+        text.push_str("\nEdit-message preference: ");
+        text.push_str(match self.1.edit_messages {
+            Some(CustomEditMessages::Brief) => "Before editing, briefly name the file and the purpose. Show a prose diff only when explicitly requested; avoid repeating the tool patch in messages.",
+            Some(CustomEditMessages::Diff) => "Before editing, name the file and purpose and show the principal changed fragments in a Markdown diff. For large changes, summarize the remaining edits; do not repeat the entire patch.",
+            Some(CustomEditMessages::Off) => "Skip routine pre-edit announcements and prose diffs unless explicitly requested. Keep the final result, validation details, necessary questions, approvals, and blockers.",
+            None => "The earlier custom edit-message preference no longer applies. Follow the current user and project instructions for edit announcements and diffs.",
+        });
+        if self.1.edit_messages.is_some() {
+            text.push_str(" This is the user's selected communication style and replaces earlier standing requirements about edit announcements and prose diffs, including AGENTS.md. It applies to edit announcements independently of routine progress narration. Respect explicit requests in the current task. This preference does not hide tool activity or change approval requirements.");
         }
         format!("\n{text}\n")
     }
@@ -101,8 +111,16 @@ impl WorldStateSection for ProgressMessagesState {
             None => "default",
         }
         .to_string();
-        let snapshot = if self.1.progress.is_some() || self.1.checks.is_some() {
+        let snapshot = if self.1.progress.is_some()
+            || self.1.checks.is_some()
+            || self.1.edit_messages.is_some()
+        {
             format!("{snapshot}:{:?}:{:?}", self.1.progress, self.1.checks)
+        } else {
+            snapshot
+        };
+        let snapshot = if let Some(mode) = self.1.edit_messages {
+            format!("{snapshot}:edits:{mode:?}")
         } else {
             snapshot
         };
@@ -111,6 +129,7 @@ impl WorldStateSection for ProgressMessagesState {
         }
         if self.0.is_none()
             && self.1.checks.is_none()
+            && self.1.edit_messages.is_none()
             && matches!(previous, PreviousSectionState::Absent)
         {
             return (Some(snapshot), Vec::new());
@@ -173,6 +192,7 @@ mod tests {
             progress: Some(CustomProgressMode::Important),
             checks: Some(CustomCheckLevel::Necessary),
             live_activity: Some(false),
+            ..Default::default()
         };
         let mut state = WorldState::default();
         state.add_section(ProgressMessagesState::new(Some(false)).with_custom(pref));
@@ -208,5 +228,69 @@ mod tests {
                 .render()
                 .contains("enabled routine progress messages again")
         );
+    }
+
+    #[test]
+    fn edit_messages_switch_and_reset_without_repeating_preferences() {
+        use codex_config::types::{CustomEditMessages, CustomTuiPreferences};
+        let mut snapshot = None;
+        let mut history = Vec::new();
+        let mut last = None;
+        for mode in [
+            Some(CustomEditMessages::Brief),
+            Some(CustomEditMessages::Brief),
+            Some(CustomEditMessages::Diff),
+            Some(CustomEditMessages::Off),
+            None,
+            None,
+        ] {
+            let mut state = WorldState::default();
+            state.add_section(ProgressMessagesState::new(Some(false)).with_custom(
+                CustomTuiPreferences {
+                    edit_messages: mode,
+                    ..Default::default()
+                },
+            ));
+            let (next, updates) = state.render_history_fragment_diff(snapshot.as_ref(), &history);
+            assert_eq!(updates.is_empty(), snapshot.is_some() && mode == last);
+            if let Some(update) = updates.first() {
+                let text = update.render();
+                assert!(text.contains(match mode {
+                    Some(CustomEditMessages::Brief) =>
+                        "Show a prose diff only when explicitly requested",
+                    Some(CustomEditMessages::Diff) => "Markdown diff",
+                    Some(CustomEditMessages::Off) => "Skip routine pre-edit announcements",
+                    None => "earlier custom edit-message preference no longer applies",
+                }));
+            }
+            history.extend(
+                updates
+                    .into_iter()
+                    .map(ContextualUserFragment::into_boxed_response_item),
+            );
+            snapshot = Some(serde_json::from_value(serde_json::to_value(next).unwrap()).unwrap());
+            last = mode;
+        }
+    }
+
+    #[test]
+    fn visual_action_preferences_do_not_add_model_context() {
+        use codex_config::types::CustomTuiPreferences;
+        let mut snapshot = None;
+        for compact in [true, false, true] {
+            let mut state = WorldState::default();
+            state.add_section(
+                ProgressMessagesState::new(None).with_custom(CustomTuiPreferences {
+                    compact_actions: Some(compact),
+                    ..Default::default()
+                }),
+            );
+            let (next, updates) = state.render_history_fragment_diff(snapshot.as_ref(), &[]);
+            assert!(updates.is_empty());
+            if let Some(previous) = &snapshot {
+                assert_eq!(*previous, next);
+            }
+            snapshot = Some(next);
+        }
     }
 }

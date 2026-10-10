@@ -17,8 +17,9 @@ impl App {
                 setting.apply(&mut self.local_settings);
                 match setting {
                     CustomSetting::Answers(value) => self.config.model_verbosity = Some(value),
-                    CustomSetting::Output(value) => {
-                        self.config.tool_output_token_limit = Some(value)
+                    CustomSetting::Output(value) => self.config.tool_output_token_limit = value,
+                    CustomSetting::Compaction(value) => {
+                        self.config.model_auto_compact_token_limit = value
                     }
                     _ => {}
                 }

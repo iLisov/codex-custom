@@ -90,3 +90,30 @@ fn failed_patch_keeps_diagnostics_beyond_the_legacy_preview() {
             .collect::<Vec<_>>()
     );
 }
+
+#[test]
+fn compact_patch_shows_path_and_counts_and_retains_full_diff() {
+    let patch = new_patch_event(
+        HashMap::from([(
+            PathBuf::from("codex-rs/tui/src/custom_update_notice.rs"),
+            FileChange::Add {
+                content: "use semver::Version;\nuse serde_json::Value;\n\nfn notice() {}\n"
+                    .to_owned(),
+            },
+        )]),
+        Path::new("."),
+    );
+    assert_eq!(
+        visible_lines(patch.compact_hyperlink_lines(80))[0].to_string(),
+        "● Create src/custom_update_notice.rs  +4"
+    );
+    assert!(
+        patch
+            .raw_lines()
+            .iter()
+            .any(|line| line.to_string().contains("fn notice() {}"))
+    );
+    let narrow = patch.compact_hyperlink_lines(24);
+    assert!(narrow[0].width() <= 24);
+    assert!(narrow[0].line.to_string().ends_with("  +4"));
+}

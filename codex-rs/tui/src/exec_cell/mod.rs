@@ -2,6 +2,7 @@ mod compact;
 mod live_output;
 mod model;
 mod render;
+mod summary;
 mod transcript;
 
 pub(crate) use model::CommandOutput;

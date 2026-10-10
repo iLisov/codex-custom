@@ -834,12 +834,22 @@ pub enum CustomCheckLevel {
     Extended,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum CustomEditMessages {
+    Brief,
+    Diff,
+    Off,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
 #[schemars(deny_unknown_fields)]
 pub struct CustomTuiPreferences {
     pub progress: Option<CustomProgressMode>,
     pub checks: Option<CustomCheckLevel>,
     pub live_activity: Option<bool>,
+    pub edit_messages: Option<CustomEditMessages>,
+    pub compact_actions: Option<bool>,
 }
 
 /// Collection of settings that are specific to the TUI.

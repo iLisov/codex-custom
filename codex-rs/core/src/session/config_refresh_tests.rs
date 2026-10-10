@@ -12,6 +12,50 @@ async fn runtime_servers(session: &Session) -> HashMap<String, McpServerConfig> 
     )
 }
 
+#[tokio::test]
+async fn reload_user_config_layer_refreshes_custom_context_settings() {
+    let (session, _) = make_session_and_context().await;
+    let home = session.codex_home().await;
+    std::fs::create_dir_all(&home).unwrap();
+    let file = home.join(CONFIG_TOML_FILE);
+    std::fs::write(&file, "").unwrap();
+    let initial = ConfigBuilder::without_managed_config_for_tests()
+        .codex_home(home.to_path_buf())
+        .build()
+        .await
+        .unwrap();
+    session
+        .state
+        .lock()
+        .await
+        .session_configuration
+        .original_config_do_not_use = Arc::new(initial);
+    for limit in [Some(200000), Some(400000), None] {
+        let contents = limit.map_or_else(String::new, |value| {
+            format!("model_auto_compact_token_limit = {value}\ntool_output_token_limit = 2000\n")
+        });
+        std::fs::write(&file, contents).unwrap();
+        session.reload_user_config_layer().await;
+        let config = session.get_config().await;
+        assert_eq!(config.model_auto_compact_token_limit, limit);
+        let state = session.state.lock().await;
+        assert_eq!(
+            state
+                .session_configuration
+                .model_info_overrides
+                .auto_compact_token_limit,
+            limit
+        );
+        assert_eq!(
+            state
+                .session_configuration
+                .model_info_overrides
+                .tool_output_token_limit,
+            limit.map(|_| 2000)
+        );
+    }
+}
+
 #[test_case::test_case(true; "host enabled")]
 #[test_case::test_case(false; "host disabled")]
 #[tokio::test]

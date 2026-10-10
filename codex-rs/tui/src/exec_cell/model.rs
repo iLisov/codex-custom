@@ -82,7 +82,10 @@ pub(crate) struct ExecCell {
 }
 
 impl ExecCell {
-    pub(crate) fn new(call: ExecCall, animations_enabled: bool) -> Self {
+    pub(crate) fn new(mut call: ExecCall, animations_enabled: bool) -> Self {
+        if !call.is_user_shell_command() {
+            call.parsed = super::summary::display_commands(&call.command, call.parsed);
+        }
         Self {
             group: ActivityGroup::new(vec![call]),
             animations_enabled,
@@ -97,7 +100,7 @@ impl ExecCell {
         source: ExecCommandSource,
         interaction_input: Option<String>,
     ) -> bool {
-        let call = ExecCall {
+        let mut call = ExecCall {
             call_id,
             command,
             parsed,
@@ -107,6 +110,9 @@ impl ExecCell {
             duration: None,
             interaction_input,
         };
+        if !call.is_user_shell_command() {
+            call.parsed = super::summary::display_commands(&call.command, call.parsed);
+        }
         if self.is_exploring_cell() && Self::is_exploring_call(&call) {
             self.group.calls.push(call);
             true

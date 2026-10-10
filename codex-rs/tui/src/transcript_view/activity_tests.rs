@@ -14,6 +14,62 @@ fn cell(text: &str) -> Arc<dyn HistoryCell> {
     ))
 }
 
+#[test]
+fn detailed_action_default_can_be_collapsed_and_switched_back_live() {
+    use crate::diff_model::FileChange;
+    use std::collections::HashMap;
+    let patch: Arc<dyn HistoryCell> = Arc::new(crate::history_cell::new_patch_event(
+        HashMap::from([(
+            std::path::PathBuf::from("example.rs"),
+            FileChange::Add {
+                content: "fn hidden_body() {}\n".to_owned(),
+            },
+        )]),
+        std::path::Path::new("."),
+    ));
+    let cells = [patch];
+    let area = Rect::new(0, 0, 80, 12);
+    let mut view = TranscriptView::default();
+    view.set_compact_actions(false);
+    view.render(area, &mut Buffer::empty(area), &cells);
+    assert!(
+        view.layout(&cells, 0)
+            .unwrap()
+            .text()
+            .contains("hidden_body")
+    );
+    view.handle_key(KeyCode::F(4).into(), &cells);
+    view.handle_key(KeyCode::Enter.into(), &cells);
+    assert!(
+        !view
+            .layout(&cells, 0)
+            .unwrap()
+            .text()
+            .contains("hidden_body")
+    );
+    view.handle_key(KeyCode::Enter.into(), &cells);
+    assert!(
+        view.layout(&cells, 0)
+            .unwrap()
+            .text()
+            .contains("hidden_body")
+    );
+    view.set_compact_actions(true);
+    assert!(
+        !view
+            .layout(&cells, 0)
+            .unwrap()
+            .text()
+            .contains("hidden_body")
+    );
+    let ids = vec!["exec:live-test".to_owned()];
+    assert!(!view.sync_live_activity(&cells, ids.clone()));
+    view.set_compact_actions(false);
+    assert!(view.sync_live_activity(&cells, ids.clone()));
+    view.set_compact_actions(true);
+    assert!(!view.sync_live_activity(&cells, ids));
+}
+
 fn render(view: &mut TranscriptView, cells: &[Arc<dyn HistoryCell>], height: u16) {
     let area = Rect::new(/*x*/ 0, /*y*/ 0, /*width*/ 32, height);
     view.render(area, &mut Buffer::empty(area), cells);

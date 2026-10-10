@@ -3,31 +3,24 @@ source: tui/src/transcript_view_tests.rs
 expression: "frames.join(\"\\n\\n\")"
 ---
 three visible
-• Ran echo
-  └ a
-    b
-    c
+● Run echo  ✓
+    ▸ 3 lines (⌃t to expand)
 
 one hidden
-• Ran echo
-  └ b
-    c
-    d
-    + 1 line (⌃t to expand)
+● Run echo  ✓
+    ▸ 4 lines (⌃t to expand)
 
 clipped line
-• Ran echo
-  └ abcdefghijklmno…
-    + 1 line
+● Run echo  ✓
+    ▸ 1 line
 
 command only
-• Ran echo a …
-  └ (no output)
-    + Show details
+● Run echo a …  ✓
+    ▸ Details
 
 storage truncated
-• Running echo
+• Run echo
   └ x
     x
     x
-    + 97 lines (⌃t to expand)
+    ▸ 97 lines (⌃t to expand)

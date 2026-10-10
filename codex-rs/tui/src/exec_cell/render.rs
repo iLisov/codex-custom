@@ -239,29 +239,7 @@ impl HistoryCell for ExecCell {
             return self.display_hyperlink_lines(width);
         }
         if self.is_exploring_cell() {
-            let mut lines = self.exploring_display_lines(width);
-            lines.truncate(1 + crate::history_cell::activity_preview::DETAIL_PREVIEW_LINES);
-            let failures = self
-                .group
-                .calls
-                .iter()
-                .filter(|call| {
-                    call.output
-                        .as_ref()
-                        .is_some_and(|output| output.exit_code != 0)
-                })
-                .count();
-            if failures > 0
-                && let Some(header) = lines.first_mut()
-            {
-                header
-                    .line
-                    .push_span(format!(" · {failures} failed").red().bold());
-            }
-            lines
-                .into_iter()
-                .map(|line| crate::history_cell::activity_preview::clipped_line(line.line, width))
-                .collect()
+            self.compact_exploration_lines(width)
         } else {
             self.compact_command_lines(width)
         }

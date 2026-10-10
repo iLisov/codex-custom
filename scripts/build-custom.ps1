@@ -1,6 +1,6 @@
 param(
-    [ValidateSet('All', 'Test', 'Build')]
-    [string]$Mode = 'All',
+    [ValidateSet('Local', 'All', 'Test', 'Build')]
+    [string]$Mode = 'Local',
     [string]$BuildToolsPath,
     [switch]$NoInstall
 )
@@ -64,13 +64,35 @@ try {
     $env:RUSTY_V8_ARCHIVE = Join-Path $V8Dir $ArchiveName
     $env:RUSTY_V8_SRC_BINDING_PATH = Join-Path $V8Dir $BindingName
 
-    if ($Mode -in @('All', 'Test')) {
-        foreach ($Filter in @('custom_settings', 'mouse', 'live_activity', 'progress_messages', 'config_schema_matches_fixture', 'custom_update_notice', 'question_mouse', 'async_questions', 'questions_tests')) {
-            & $CargoPath test --locked --target x86_64-pc-windows-msvc --profile dev-small -p codex-tui -p codex-core --lib $Filter -- --nocapture
+    if ($Mode -in @('Local', 'All', 'Test')) {
+        if ($Mode -eq 'Local') {
+            $TestPackages = @('-p', 'codex-tui')
+            $Filters = @(
+                'exec_cell::compact::tests',
+                'terminal_output_disclosure_counts_only_revealable_lines',
+                'activity_focus_keeps_controls_without_passive_hints',
+                'find_reveals_hidden_command_output_and_restores_compact_presentation'
+            )
+        } else {
+            $TestPackages = @('-p', 'codex-tui', '-p', 'codex-core')
+            $Filters = @(
+                'custom_settings',
+                'mouse',
+                'live_activity',
+                'progress_messages',
+                'config_schema_matches_fixture',
+                'custom_update_notice',
+                'question_mouse',
+                'async_questions',
+                'questions_tests'
+            )
+        }
+        foreach ($Filter in $Filters) {
+            & $CargoPath test --locked --target x86_64-pc-windows-msvc --profile dev-small @TestPackages --lib $Filter -- --nocapture
             if ($LASTEXITCODE -ne 0) { throw "TUI tests failed: $Filter" }
         }
     }
-    if ($Mode -in @('All', 'Build')) {
+    if ($Mode -in @('Local', 'All', 'Build')) {
         & $CargoPath build --locked --target x86_64-pc-windows-msvc --profile dev-small --bin codex --bin codex-code-mode-host --bin codex-app-server --bin codex-command-runner --bin codex-windows-sandbox-setup --bin codex-windows-sandbox-service
         if ($LASTEXITCODE -ne 0) { throw 'Custom CLI build failed' }
         $Output = Join-Path $RustRoot 'target/x86_64-pc-windows-msvc/dev-small'

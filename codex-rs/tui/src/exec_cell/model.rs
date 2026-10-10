@@ -79,6 +79,7 @@ pub(crate) struct ExecCall {
 pub(crate) struct ExecCell {
     pub(crate) group: ActivityGroup<ExecCall>,
     animations_enabled: bool,
+    pub(super) working_directory: Option<String>,
 }
 
 impl ExecCell {
@@ -89,6 +90,13 @@ impl ExecCell {
         Self {
             group: ActivityGroup::new(vec![call]),
             animations_enabled,
+            working_directory: None,
+        }
+    }
+
+    pub(crate) fn set_working_directory(&mut self, working_directory: String) {
+        if self.working_directory.is_none() && !working_directory.trim().is_empty() {
+            self.working_directory = Some(working_directory);
         }
     }
 

@@ -348,7 +348,7 @@ impl ChatWidget {
                 link("Выбрать поля", "Модель, permissions, контекст и другие поля. На токены и контекст не влияет.", CustomSettingsPage::Command(SlashCommand::Statusline)),
             ],
             CustomSettingsPage::ToolDetails => vec![
-                choice("Компактно", "Короткие строки действий; команды, вывод и diff раскрываются по запросу. На контекст не влияет.", compact_actions, CustomSetting::ToolDetails(true)),
+                choice("Компактно", "Показывает действие и путь; команда, вывод и diff раскрываются по запросу. На контекст не влияет.", compact_actions, CustomSetting::ToolDetails(true)),
                 choice("Подробно", "Команды, вывод и diff сразу раскрыты; отдельные действия можно свернуть. На контекст не влияет.", !compact_actions, CustomSetting::ToolDetails(false)),
             ],
             CustomSettingsPage::Animations | CustomSettingsPage::Notifications | CustomSettingsPage::Activity => {

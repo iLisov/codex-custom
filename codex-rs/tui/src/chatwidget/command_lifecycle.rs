@@ -246,6 +246,7 @@ impl ChatWidget {
             command,
             source,
             command_actions,
+            cwd,
             ..
         } = item
         else {
@@ -253,6 +254,7 @@ impl ChatWidget {
         };
         let (command, parsed_cmd) =
             command_execution_command_and_parsed(&command, &command_actions);
+        let working_directory = cwd.render_for_ui();
         // Ensure the status indicator is visible while the command runs.
         self.bottom_pane.ensure_status_indicator();
         let parsed_cmd = self.annotate_skill_reads_in_parsed_cmd(parsed_cmd);
@@ -293,18 +295,21 @@ impl ChatWidget {
                 /*interaction_input*/ None,
             )
         {
+            cell.set_working_directory(working_directory.clone());
             self.bump_active_cell_revision();
         } else {
             self.flush_active_cell();
 
-            self.transcript.active_cell = Some(Box::new(new_active_exec_command(
+            let mut cell = new_active_exec_command(
                 id,
                 command,
                 parsed_cmd,
                 source,
                 /*interaction_input*/ None,
                 self.local_settings.tui.animations && self.local_settings.tui.effects.progress,
-            )));
+            );
+            cell.set_working_directory(working_directory);
+            self.transcript.active_cell = Some(Box::new(cell));
             self.bump_active_cell_revision();
         }
 
@@ -333,6 +338,7 @@ impl ChatWidget {
         let ThreadItem::CommandExecution {
             id,
             command,
+            cwd,
             process_id: _,
             source,
             status,
@@ -346,6 +352,7 @@ impl ChatWidget {
             return;
         };
         let event_command = split_command_string(&command);
+        let working_directory = cwd.render_for_ui();
         let event_parsed = command_actions
             .into_iter()
             .map(codex_app_server_protocol::CommandAction::into_core)
@@ -443,6 +450,7 @@ impl ChatWidget {
                     /*interaction_input*/ None,
                     self.local_settings.tui.animations && self.local_settings.tui.effects.progress,
                 );
+                orphan.set_working_directory(working_directory.clone());
                 let completed = orphan.complete_call(&id, output, duration);
                 debug_assert!(completed, "new orphan exec cell should contain {id}");
                 self.app_event_tx
@@ -458,6 +466,7 @@ impl ChatWidget {
                     /*interaction_input*/ None,
                     self.local_settings.tui.animations && self.local_settings.tui.effects.progress,
                 );
+                cell.set_working_directory(working_directory.clone());
                 let completed = cell.complete_call(&id, output, duration);
                 debug_assert!(completed, "new exec cell should contain {id}");
                 if let Some(active) = self
@@ -471,6 +480,7 @@ impl ChatWidget {
                 {
                     // Replayed commands have completion events without matching starts.
                     active.group.calls.extend(cell.group.calls);
+                    active.set_working_directory(working_directory);
                     self.bump_active_cell_revision();
                     self.request_redraw();
                 } else {

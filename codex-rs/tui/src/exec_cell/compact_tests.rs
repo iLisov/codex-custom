@@ -43,7 +43,10 @@ fn powershell_sections_collapse_without_losing_command_or_output() {
         0,
     );
     assert!(cell.is_exploring_cell());
-    assert_eq!(compact(&cell, 80), "● Read bottom_pane/mod.rs · 3 reads  ✓");
+    assert_eq!(
+        compact(&cell, 80),
+        "● Чтение codex-rs/tui/src/bottom_pane/mod.rs · 3 действия  ✓"
+    );
     let full = cell.raw_lines().iter().map(ToString::to_string).join("\n");
     assert!(full.contains(script));
     assert!(full.contains("first section\nsecond section\nthird section"));
@@ -57,14 +60,17 @@ fn successful_commands_hide_output_and_count_every_hidden_line() {
         "one\ntwo\nthree\nfour",
         0,
     );
-    assert_eq!(compact(&cell, 80), "● Check git diff --check  ✓");
+    assert_eq!(compact(&cell, 80), "● Проверка .  ✓");
     assert!(matches!(
         cell.activity_disclosure(80),
         Some(ActivityDisclosure::OutputLines(4))
     ));
     let empty = cell_fn("git diff --check", "", 0);
-    assert_eq!(empty.activity_disclosure(80), None);
-    assert_eq!(compact(&empty, 80), "● Check git diff --check  ✓");
+    assert_eq!(
+        empty.activity_disclosure(80),
+        Some(ActivityDisclosure::Generic)
+    );
+    assert_eq!(compact(&empty, 80), "● Проверка .  ✓");
 }
 
 fn cell_fn(script: &str, output: &str, code: i32) -> ExecCell {
@@ -72,19 +78,16 @@ fn cell_fn(script: &str, output: &str, code: i32) -> ExecCell {
 }
 
 #[test]
-fn failure_preview_keeps_first_diagnostics_and_discloses_the_rest() {
+fn compact_failure_hides_diagnostics_but_keeps_them_available_to_expand() {
     let cell = cell_fn(
         "cargo check",
         "error: missing symbol\nwhere it happened\nhelp: fix this\nmore details",
         101,
     );
-    assert_eq!(
-        compact(&cell, 80),
-        "● Check cargo check  ✗ exit 101\n  └ error: missing symbol\n    where it happened\n    help: fix this"
-    );
+    assert_eq!(compact(&cell, 80), "● Проверка .  ✗ ошибка · код 101");
     assert!(matches!(
         cell.activity_disclosure(80),
-        Some(ActivityDisclosure::OutputLines(1))
+        Some(ActivityDisclosure::OutputLines(4))
     ));
     assert!(
         cell.raw_lines()
@@ -94,17 +97,23 @@ fn failure_preview_keeps_first_diagnostics_and_discloses_the_rest() {
 }
 
 #[test]
-fn powershell_mixed_commands_and_dynamic_code_stay_visible() {
+fn powershell_commands_are_summarized_in_compact_view() {
     let mixed = cell_fn(
         "Get-Content file.txt -Encoding utf8; Remove-Item file.txt",
         "",
         0,
     );
     assert!(!mixed.is_exploring_cell());
-    assert!(compact(&mixed, 100).contains("Remove-Item"));
+    assert!(!compact(&mixed, 100).contains("Remove-Item"));
+    assert!(
+        mixed
+            .raw_lines()
+            .iter()
+            .any(|line| line.to_string().contains("Remove-Item"))
+    );
     let dynamic = cell_fn("Get-Content $(Get-Item file.txt) -Encoding utf8", "", 0);
     assert!(!dynamic.is_exploring_cell());
-    assert!(compact(&dynamic, 100).contains("Get-Content"));
+    assert!(!compact(&dynamic, 100).contains("Get-Content"));
     let selector = cell_fn(
         "Get-Content file.txt | Select-Object -ExpandProperty Secret",
         "",
@@ -114,7 +123,7 @@ fn powershell_mixed_commands_and_dynamic_code_stay_visible() {
 }
 
 #[test]
-fn read_errors_are_visible_between_successful_groups() {
+fn read_errors_hide_output_in_compact_view() {
     let mut cell = cell_fn("Get-Content first.txt -Encoding utf8", "first output", 0);
     let command = vec![
         "powershell.exe".to_owned(),
@@ -135,7 +144,7 @@ fn read_errors_are_visible_between_successful_groups() {
     );
     assert_eq!(
         compact(&cell, 80),
-        "● Read first.txt  ✓\n● Read missing.txt  ✗ exit 1\n  └ file not found"
+        "● Чтение first.txt  ✓\n● Чтение missing.txt  ✗ ошибка · код 1"
     );
 }
 
@@ -146,7 +155,7 @@ fn compact_headers_preserve_status_on_narrow_terminals() {
         "",
         0,
     );
-    assert_eq!(compact(&cell, 80), "● Format cargo fmt -p codex-tui  ✓");
+    assert_eq!(compact(&cell, 80), "● Форматирование .  ✓");
     for width in [1, 8, 24, 40, 80] {
         let lines = cell.compact_hyperlink_lines(width);
         assert!(lines.iter().all(|line| line.width() <= usize::from(width)));
@@ -160,7 +169,7 @@ fn compact_headers_preserve_status_on_narrow_terminals() {
 fn search_without_matches_keeps_neutral_exit_status() {
     let cell = cell_fn("rg absent .", "", 1);
     let lines = cell.compact_hyperlink_lines(80);
-    assert!(compact(&cell, 80).ends_with("exit 1"));
+    assert!(compact(&cell, 80).ends_with("совпадений нет"));
     assert!(
         !lines[0]
             .line
@@ -171,7 +180,7 @@ fn search_without_matches_keeps_neutral_exit_status() {
 }
 
 #[test]
-fn active_command_preview_follows_latest_output() {
+fn active_command_hides_output_in_compact_view() {
     let command = vec![
         "powershell.exe".to_owned(),
         "-Command".to_owned(),
@@ -187,11 +196,10 @@ fn active_command_preview_follows_latest_output() {
     );
     cell.append_output("live", "old progress\none\ntwo\nlatest progress\n");
     let preview = compact(&cell, 80);
-    assert!(preview.contains("latest progress"));
-    assert!(!preview.contains("old progress"));
+    assert_eq!(preview, "● Проверка .  · выполняется");
     assert!(!preview.contains('✓'));
     assert!(matches!(
         cell.activity_disclosure(80),
-        Some(ActivityDisclosure::OutputLines(1))
+        Some(ActivityDisclosure::OutputLines(4))
     ));
 }

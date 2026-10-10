@@ -3,15 +3,15 @@ source: tui/src/transcript_view/search_tests.rs
 expression: "crate::transcript_view::tests::text(&buffer)"
 ---
 • Run 'echo visible …
-    ▸ Details
+    ▸ Подробнее
 
 • Run 'echo visible …
-    ▸ Details
+    ▸ Подробнее
 
 $ 'echo visible
     echo hidden newer needle'
-    ▾ Less
+    ▾ Свернуть
 
 $ 'echo visible
     echo hidden manual'
-    ▾ Less
+    ▾ Свернуть

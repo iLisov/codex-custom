@@ -3,24 +3,21 @@ source: tui/src/transcript_view_tests.rs
 expression: "frames.join(\"\\n\\n\")"
 ---
 three visible
-● Run echo  ✓
-    ▸ 3 lines (⌃t to expand)
+● Команда .  ✓
+    ▸ 3 стр. (⌃t — раскрыть)
 
 one hidden
-● Run echo  ✓
-    ▸ 4 lines (⌃t to expand)
+● Команда .  ✓
+    ▸ 4 стр. (⌃t — раскрыть)
 
 clipped line
-● Run echo  ✓
-    ▸ 1 line
+● Команда .  ✓
+    ▸ 1 стр.
 
 command only
-● Run echo a …  ✓
-    ▸ Details
+● Команда .  ✓
+    ▸ Подробнее
 
 storage truncated
-• Run echo
-  └ x
-    x
-    x
-    ▸ 97 lines (⌃t to expand)
+• Команда .
+    ▸ 97 стр. (⌃t — раскрыть)

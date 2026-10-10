@@ -73,52 +73,43 @@ pub(super) fn display_commands(
     }
 }
 
-pub(super) fn action(item: &ParsedCommand) -> (&'static str, String) {
+pub(super) fn compact_action(item: &ParsedCommand) -> Option<(&'static str, String)> {
     match item {
-        ParsedCommand::Read { path, .. } => ("Read", short_path(&path.to_string_lossy())),
-        ParsedCommand::ListFiles { path, .. } => {
-            ("List", path.clone().unwrap_or_else(|| ".".to_owned()))
-        }
-        ParsedCommand::Search { query, path, cmd } => {
-            let detail = match (query, path) {
-                (Some(query), Some(path)) => format!("{query} in {path}"),
-                (Some(query), None) => query.clone(),
-                _ => cmd.clone(),
-            };
-            ("Search", detail)
-        }
-        ParsedCommand::Unknown { cmd } => {
-            let fallback = || ("Run", cmd.lines().next().unwrap_or(cmd).to_owned());
-            let Some(mut tokens) = shlex::split(cmd) else {
-                return fallback();
-            };
-            if tokens.first().is_some_and(|token| token == "&") {
-                tokens.remove(0);
+        ParsedCommand::Read { path, .. } => Some(("Чтение", path.to_string_lossy().into_owned())),
+        ParsedCommand::ListFiles { path, .. } => Some(("Список", path.clone().unwrap_or_default())),
+        ParsedCommand::Search { path, .. } => Some(("Поиск", path.clone().unwrap_or_default())),
+        ParsedCommand::Unknown { .. } => None,
+    }
+}
+
+pub(super) fn compact_path(path: &str, working_directory: Option<&str>) -> String {
+    let path = path.replace('\\', "/");
+    let path = path.trim_start_matches("./");
+    if let Some(working_directory) = working_directory {
+        let working_directory = working_directory.replace('\\', "/");
+        let working_directory = working_directory.trim_end_matches('/');
+        let normalized = path.replace('\\', "/");
+        if let Some(prefix) = normalized.get(..working_directory.len())
+            && prefix.eq_ignore_ascii_case(working_directory)
+        {
+            let rest = normalized
+                .get(working_directory.len()..)
+                .unwrap_or_default();
+            if rest.is_empty() {
+                return ".".to_owned();
             }
-            if cmd.lines().nth(1).is_some()
-                || tokens.iter().any(|token| token.contains([';', '|', '&']))
-            {
-                return fallback();
+            if let Some(relative) = rest.strip_prefix('/') {
+                return if relative.len() > 72 {
+                    short_path(relative)
+                } else {
+                    relative.to_owned()
+                };
             }
-            let Some(executable) = tokens.first() else {
-                return fallback();
-            };
-            let name = executable
-                .rsplit(['/', '\\'])
-                .next()
-                .unwrap_or(executable)
-                .to_ascii_lowercase();
-            let name = name.trim_end_matches(".exe").to_owned();
-            let title = match (name.as_str(), tokens.get(1).map(String::as_str)) {
-                ("git", Some("diff")) if tokens.iter().any(|token| token == "--check") => "Check",
-                ("cargo", Some("fmt")) => "Format",
-                ("cargo", Some("test")) | ("npm" | "pnpm", Some("test")) => "Test",
-                ("cargo", Some("check" | "clippy")) => "Check",
-                ("cargo", Some("build")) => "Build",
-                _ => return fallback(),
-            };
-            tokens[0] = name;
-            (title, shlex_join(&tokens))
         }
+    }
+    if path.contains(':') || path.starts_with('/') || path.len() > 72 {
+        short_path(path)
+    } else {
+        path.to_owned()
     }
 }

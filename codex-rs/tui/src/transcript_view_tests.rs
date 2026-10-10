@@ -182,8 +182,8 @@ fn terminal_output_disclosure_follows_live_history_and_keymap() {
         &mut view, &cells, /*width*/ 72, /*height*/ 6,
     ));
     assert_eq!(live, committed);
-    let hint = " (⌃t to expand)";
-    assert!(live.contains(&format!("▸ 8 lines{hint}")));
+    let hint = " (⌃t — раскрыть)";
+    assert!(live.contains(&format!("▸ 8 стр.{hint}")));
     // Check where the hint is visible, so the copy/search exclusion cannot pass vacuously.
     assert!(
         !view
@@ -194,8 +194,8 @@ fn terminal_output_disclosure_follows_live_history_and_keymap() {
     );
     // Warm layouts must follow config changes, including chords and disabling the action.
     for (configured, expected) in [
-        (serde_json::json!("f12"), " (f12 to expand)"),
-        (serde_json::json!("ctrl-x t"), " (⌃x t to expand)"),
+        (serde_json::json!("f12"), " (f12 — раскрыть)"),
+        (serde_json::json!("ctrl-x t"), " (⌃x t — раскрыть)"),
         (serde_json::json!([]), ""),
     ] {
         let config = serde_json::from_value(serde_json::json!({

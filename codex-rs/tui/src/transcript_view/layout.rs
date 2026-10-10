@@ -35,21 +35,25 @@ pub(super) fn activity_layout(
     if !has_details {
         return layout;
     }
-    let label = match (expanded, lines.disclosure) {
-        (true, _) => "▾ Less".to_owned(),
-        (false, Some(ActivityDisclosure::OutputLines(count))) => {
-            let noun = if count == 1 { "line" } else { "lines" };
-            let mut label = format!("▸ {count} {noun}");
-            if let Some(shortcut) = shortcut {
-                let hint = format!(" ({} to expand)", shortcut.display_label());
-                let indent = usize::from(width / 4).min(/*other*/ 4);
-                if Line::from(format!("{label}{hint}")).width() + indent <= usize::from(width) {
-                    label.push_str(&hint);
-                }
-            }
-            label
+    let hint = shortcut
+        .as_ref()
+        .map(|shortcut| format!(" ({} — раскрыть)", shortcut.display_label()));
+    let add_hint = |mut label: String| {
+        if let Some(hint) = &hint
+            && Line::from(format!("{label}{hint}")).width()
+                + usize::from(width / 4).min(/*other*/ 4)
+                <= usize::from(width)
+        {
+            label.push_str(hint);
         }
-        (false, Some(ActivityDisclosure::Generic) | None) => "▸ Details".to_owned(),
+        label
+    };
+    let label = match (expanded, lines.disclosure) {
+        (true, _) => "▾ Свернуть".to_owned(),
+        (false, Some(ActivityDisclosure::OutputLines(count))) => {
+            add_hint(format!("▸ {count} стр."))
+        }
+        (false, Some(ActivityDisclosure::Generic) | None) => add_hint("▸ Подробнее".to_owned()),
     };
     match source_offset {
         Some(offset) => layout.with_disclosure_control_at(label, offset),

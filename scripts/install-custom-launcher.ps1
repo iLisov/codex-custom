@@ -1,5 +1,7 @@
 param([Parameter(Mandatory = $true)][string]$Binary, [Parameter(Mandatory = $true)][string]$ProjectRoot)
 $ErrorActionPreference = 'Stop'
+$Binary = (Resolve-Path -LiteralPath $Binary).ProviderPath
+$ProjectRoot = (Resolve-Path -LiteralPath $ProjectRoot).ProviderPath
 $VersionText = (& $Binary --version) -join "`n"
 if ($LASTEXITCODE -ne 0) { throw 'Cannot read installed binary version.' }
 $VersionMatch = [regex]::Match($VersionText, 'codex-cli (\d+\.\d+\.\d+)')
